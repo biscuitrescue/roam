@@ -1,0 +1,18 @@
+:PROPERTIES:
+:ID:       37ba2cf9-d6ab-4f61-a7f6-77f86b53f852
+:END:
+#+title: langgraph
+
+* Elements
+** State
+ * Shared data which holds current info (context) of entire app
+ * App's mem -> keeps track of vars, data which nodes can access/mod
+** Nodes
+ * Individual functions or operations which perform specific tasks within graph
+ * Each node:
+  1. Rcvs input
+  2. processes it
+  3. produces output
+** Graph
+ * Overarching struct which maps out how different tasks are connected and execd
+ * 

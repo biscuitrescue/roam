@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       8e6971d9-0666-43bb-a628-6298820227f6
+:END:
+#+title: eh1
+
+[[id:9781ba66-abca-4058-93fe-fcc3f5928f0e][virtualisation]]
+[[id:9df935b3-0d4e-4090-a456-efd7a7fa3fee][sdn]]
