@@ -15,4 +15,24 @@
   3. produces output
 ** Graph
  * Overarching struct which maps out how different tasks are connected and execd
- * 
+ * visually represents workflow, shows seq & conditional paths b/w various operations.
+** Edges
+ * Determine flow of exec
+ * which node should be execd next after current one completes task
+** Conditional Edge
+ * Specialised connections which decide next node to exec based on specific conditions or logic applied to current state.
+** Start
+ * virtual entry point
+ * doesnt perform ops
+** End
+ * conclusion of workflow
+ * indicates all procs have been completed.
+** Tools
+Specialised functions nodes util to perform tasks
+** ToolNode
+Special node which runs tool
+** StateGraph
+Class used to build and compile graph struct
+** Runnable
+standardised executable component whcih performs specific task within AI workflow
+** Messages
