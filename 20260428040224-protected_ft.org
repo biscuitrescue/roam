@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       dea6f481-a1f2-43ce-964a-015df8a6d75a
+:END:
+#+title: protected ft
+#+OPTIONS toc:2
+
+* TOC :toc:

