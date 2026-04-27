@@ -13,3 +13,4 @@ fileless attacks run the payload directly in memory or leverage legitimate syste
 * Extras
 - Certutil -> Decoding
 - regsvr32 -> loading decoded DLL
+- =base64 -w 0= -> creates only one line
