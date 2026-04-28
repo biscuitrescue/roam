@@ -8,3 +8,6 @@
 - [[id:b6d2607f-fc30-40ed-b41e-20c31b253ae3][files with code]]
 - [[id:1db46458-aa49-4a79-98d1-45292611af7a][misc file transfers]]
 - [[id:dea6f481-a1f2-43ce-964a-015df8a6d75a][protected ft]]
+- [[id:e36daf34-d954-4024-95c7-d5649ba85425][catching files HTTP/s]]
+- [[id:106931af-96ac-4874-ae12-6c640c228d93][living off the land ft]]
+- [[id:2d4106fb-a811-4f43-88c5-d193a80d5d6e][detection]]

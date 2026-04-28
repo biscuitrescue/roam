@@ -1,0 +1,39 @@
+:PROPERTIES:
+:ID:       e36daf34-d954-4024-95c7-d5649ba85425
+:END:
+#+title: catching files HTTP/s
+#+OPTIONS toc:2
+
+* TOC :toc:
+- [[#https][HTTP/S]]
+- [[#nginx---put][Nginx -> PUT]]
+
+* HTTP/S
+- most common protocol allowed through firewall
+- file enc in transit
+* Nginx -> PUT
+- apache -> php -> easy to exec anything ending in php
+
+1. change owner to www-data
+2. config file
+#+begin_src conf
+server {
+    listen 9001;
+    
+    location /SecretUploadDirectory/ {
+        root    /var/www/uploads;
+        dav_methods PUT;
+    }
+}
+#+end_src
+
+1. symlink config =/etc/nginx/sites-available/upload.conf= -> =/etc/nginx/sites-enabled/=
+2. start nginx
+3. verify err -> port 80
+   1. ~tail -2 /var/log/nginx/error.log~ 
+   2. ~ss -lnpt | grep 80~
+   3. ~ps -ef | grep 2811~
+4. remove default config =/etc/nginx/sites-enabled/default=
+5. test to ensure directory listing is not enabled
+   -> http://localhost/SecretUploadDirectory.
+   - if we hit dir _c_ index.html, it will list all files.

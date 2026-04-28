@@ -14,3 +14,12 @@ fileless attacks run the payload directly in memory or leverage legitimate syste
 - Certutil -> Decoding
 - regsvr32 -> loading decoded DLL
 - =base64 -w 0= -> creates only one line
+
+** CURL
+*** flags
+~-L~ -> follow HTTP redirects
+~-X~ -> request (POST, PUT, DELETE)
+~-H~ -> header
+~-d~ -> specs data (sets method -> =POST=)
+~-k~ -> insecure
+~-T~ -> upload local file to remote server

