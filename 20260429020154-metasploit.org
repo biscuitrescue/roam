@@ -8,6 +8,10 @@
 - [[#msf-engagement-structure][MSF engagement structure]]
 - [[#syntax][Syntax]]
 - [[#specific-search][Specific Search]]
+- [[#payload][Payload]]
+  - [[#staged-payloads][Staged Payloads]]
+  - [[#meterpreter][Meterpreter]]
+- [[#searching-for-payload][Searching for payload]]
 
 * MSF engagement structure
 - Enumeration
@@ -24,3 +28,71 @@
 
 * Specific Search
 - ~search type:exploit platform:windows cve:2021 rank:excellent microsoft~
+
+* Payload
+- module which aids exploit module in returning shell to attacker.
+- sent together with exploit to bypass std functioning proceduress of vuln services (=exploits job=)
+
+1. [[#singles][Singles]] -> =windows/shell_bind_tcp=
+   =windows/shell/bind_tcp=
+2. [[#stager][Stagers]] -> =bind_tcp=
+3. [[#stage][Stages]] -> =shell=
+
+**** Singles
+contains exploit && shellcode for sel task.
+- inline payloads -> more stable (contain everything)
+- may not be supported by some exploits because of size.
+
+**** Stager
+work with [[#stage][stage]]. perform spec task.
+- runs on victim machine. 
+- initiates outbound connection to attacker's listener
+- designed to be small & reliable
+- default -> appr stager for given scenario (fallback -> less-preferred)
+
+**** Stage
+- payload component downloaded by stager's modules.
+- eg: =Meterpreter=, =VNC Injection=
+- payload stages automatically use middle stagers
+  - single ~recv()~ fails with large payloads.
+  - stager recievers middle stager.
+  - middle stager performs full download
+  - better for RWX
+
+** Staged Payloads
+*Exploitation Process* which is modularised and functionally separated.
+- Goal -> Be compact and inconspicous.
+# Help with Antivirus / IPS evasion
+
+**** =Stage0= -> init shellcode sent over net to target
+- init connection back to attacker.
+- aka: reverse connection.
+- =reverse_tcp=, =reverse_http=, =bind_tcp= -> ~show payloads~
+- attempts to read larger payload into mem (=stage1=)
+
+**** Reverse Connections
+more effective -> leverage outbound traffic rules. (inbound = stricter)
+
+
+** Meterpreter
+- Uses =DLL Injection=
+  - ensures connection to victim is:
+    - stable
+    - hard to detect by simple checks
+    - persistent across reboots / sys changes
+
+- resides completely in mem of remote host.
+- no trace on hard drive.
+- v difficult to detect with conventional forensics.
+- plugins loaded/unloaded dynamically
+
+**** after exec
+- new session created.
+- all avl cmds aimed at target system.
+- keystroke capture, passwd hash collection. microphone tapping, ss to impersonate process Security tokens.
+
+* Searching for payload
+#+begin_src bash
+msf6 exploit(windows/smb/ms17_010_eternalblue) > grep meterpreter show payloads
+msf6 exploit(windows/smb/ms17_010_eternalblue) > grep meterpreter grep reverse_tcp show payloads
+#+end_src>
