@@ -14,6 +14,20 @@
   - [[#searching-for-payload][Searching for payload]]
 - [[#encoders][Encoders]]
   - [[#selecting-encoder][Selecting encoder]]
+- [[#databases][Databases]]
+  - [[#setting-up][Setting up]]
+  - [[#using-db][Using DB]]
+  - [[#importing-scan-results][Importing scan results]]
+  - [[#using-nmap-inside-msfconsole][Using Nmap inside MSFconsole]]
+  - [[#data-backup][Data Backup]]
+  - [[#hosts][Hosts]]
+  - [[#services][Services]]
+  - [[#credentials][Credentials]]
+  - [[#loot][Loot]]
+- [[#plugins][Plugins]]
+  - [[#load-nessus][Load Nessus]]
+  - [[#mixins][Mixins]]
+- [[#sessions][Sessions]]
 
 * MSF engagement structure
 - Enumeration
@@ -159,3 +173,88 @@ biscuitrescue@htb[/htb]$ msfvenom -a x86 --platform windows -p windows/meterpret
 
 *** VirusTotal
 analyses payload
+~msf-virustotal -k <API key> -f TeamViewerInstall.exe~
+
+* Databases
+keep track of result
+- built in support for =PostgreSQL=
+- can be used to configure exploit module params w already existing findings directly
+** Setting up
+- ensure server is up and running
+*** Init db
+~sudo msfdb init~
+- can check status w ~msfdb status~
+*** connect
+~sudo msfdb run~
+- also starts =msfconsole=
+*** If cant change passwd -> Reinit db
+#+begin_src shell
+biscuitrescue@htb[/htb]$ msfdb reinit
+biscuitrescue@htb[/htb]$ cp /usr/share/metasploit-framework/config/database.yml ~/.msf4/
+biscuitrescue@htb[/htb]$ sudo service postgresql restart
+biscuitrescue@htb[/htb]$ msfconsole -q
+#+end_src>
+
+** Using DB
+- can be ex/im(ported)
+
+*** Workspaces
+folders in project
+- can segregate diff:
+  1. scan results
+  2. hosts
+  3. extracted info by:
+     1. IP
+     2. Subnet
+     3. network
+     4. domain
+        
+- view -> ~workspace~
+- add -> ~workspace -a~
+- delete -> ~workspace -d~
+
+** Importing scan results
+~db_import Target.xml~
+- After the import is complete, we can check the presence of the host's information in our database by using the hosts and services commands.
+# Note that the .xml file type is preferred for db_import
+ 
+** Using Nmap inside MSFconsole
+~df_nmap~
+
+** Data Backup
+- ~db_export -f xml backup.xml~
+
+** Hosts
+- displays table populated w:
+  - host addr
+  - hostnames etc.
+
+** Services
+- table w desc & info on services discovered during scans/interaction
+
+** Credentials
+~creds~
+- visualise creds gathered.
+- can add manually
+- match existing creds w port specs, add descr
+
+** Loot
+- works w ~creds~.
+- at-a-glance list of owned users & services
+- loot refers to hash dumps from diff system types:
+  - hashes
+  - passwd
+  - shadow
+    
+* Plugins
+- need to ensure is installed
+- check =/usr/share/metasploit-framework/plugins=
+** Load Nessus
+~load nessus~
+** Mixins
+- classes which act as methods for use by other classes w/out having to be parent class of other classes.
+- +inheritance+ inclusion
+- ~include~ with modules passes as param
+- [[https://en.wikibooks.org/wiki/Metasploit/UsingMixins][mixins]]
+  
+* Sessions
