@@ -36,6 +36,7 @@
   - [[#powerful][Powerful]]
   - [[#extensible][Extensible]]
   - [[#using][Using]]
+- [[#writingimporting-modules][Writing/Importing modules]]
 
 * MSF engagement structure
 - Enumeration
@@ -314,3 +315,13 @@ uses channelised comms system b/w target host and attacker.
 augmented at runtime & loaded over network. allows new functionality to be added w/out rebuilding (*modular*)
 
 ** Using
+*** Scanning target
+~db_nmap~
+*** =local_exploit_suggester=
+~search local_exploit_suggester~
+*** duming hashes
+- ~hashdump~
+- ~lsa_dump_sam~
+- ~lsa_dump_secrets~
+  
+* Writing/Importing modules
