@@ -10,7 +10,7 @@
 - [[#specific-search][Specific Search]]
 - [[#payload][Payload]]
   - [[#staged-payloads][Staged Payloads]]
-  - [[#meterpreter][Meterpreter]]
+  - [[#meterpreter-depth][Meterpreter (depth)]]
   - [[#searching-for-payload][Searching for payload]]
 - [[#encoders][Encoders]]
   - [[#selecting-encoder][Selecting encoder]]
@@ -28,6 +28,14 @@
   - [[#load-nessus][Load Nessus]]
   - [[#mixins][Mixins]]
 - [[#sessions][Sessions]]
+  - [[#using-sessions][using sessions]]
+  - [[#jobs][jobs]]
+- [[#meterpreter][Meterpreter]]
+  - [[#running][Running]]
+  - [[#stealthy][Stealthy]]
+  - [[#powerful][Powerful]]
+  - [[#extensible][Extensible]]
+  - [[#using][Using]]
 
 * MSF engagement structure
 - Enumeration
@@ -90,7 +98,7 @@ work with [[#stage][stage]]. perform spec task.
 more effective -> leverage outbound traffic rules. (inbound = stricter)
 
 
-** Meterpreter
+** Meterpreter ([[id:451415a9-7083-48a5-b804-4aa959047ec1][depth]])
 - Uses =DLL Injection=
   - ensures connection to victim is:
     - stable
@@ -258,3 +266,51 @@ folders in project
 - [[https://en.wikibooks.org/wiki/Metasploit/UsingMixins][mixins]]
   
 * Sessions
+- dedicated control interfaces for deployed module
+
+** using sessions
+can bg session as long as they form channel of comms w target host
+- Done by =C-z=, or ~background~ cmd in meterpreter stages
+
+** jobs
+- cant terminate session using =C-c=
+- need to use ~jobs~
+- ~exploit -j~ -> run exploit as job
+- ~jobs -l~ -> list jobs (kill using ~kill [idx]~)
+- ~jobs -K~ -> kill all running jobs
+  
+*** TODO DO LAB 2 AGAIN
+
+* Meterpreter
+:PROPERTIES:
+:ID:       451415a9-7083-48a5-b804-4aa959047ec1
+:END:
+- multi-faceted extensible
+- used =DLL Injection= -> ensures connection to victim host is stable & difficult to detect using simle checks
+- resides in mem of remote hosts
+- leaves no trace on hard drive
+- ~show payloads~
+
+** Running
+after exec:
+- target execs init stager. (usually bind, reverse, findtag, passivex etc)
+- stager loads DLL prefixed w reflective. reflective stub handles unloading/injection of DLL
+- core inits, establishes AES-encrypted link over socket, sends GET.
+- msf rcvs GET, configs client.
+- loads extensions. always loads =stdapi= =priv= if module gives admin rights.
+
+** Stealthy
+- resides entirely in mem, writes nothing to disk.
+- no new processes created when Meterpreter injects itself into compromised dev
+- perform process migrations.
+- all meterpreter payload comms b/w target and us are encrypted using AES
+# all of these provide ltd forensic evidence
+
+** Powerful
+uses channelised comms system b/w target host and attacker.
+- allows for AES encrypted traffic
+
+** Extensible 
+augmented at runtime & loaded over network. allows new functionality to be added w/out rebuilding (*modular*)
+
+** Using
