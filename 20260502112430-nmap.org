@@ -7,6 +7,8 @@
 * TOC :toc:
 - [[#enumeration][Enumeration]]
 - [[#host-enumeration][Host Enumeration]]
+- [[#bypass-security-measure][Bypass Security Measure]]
+- [[#extras][Extras]]
 
 * Enumeration
 identifying all the ways we could attack target we must find.
@@ -16,3 +18,9 @@ identifying all the ways we could attack target we must find.
 
 * Host Enumeration
 - [[id:6627241c-4b83-4553-b110-21fc45dcbb3f][host enumeration]]
+
+* Bypass Security Measure
+- [[id:34519d60-3236-4019-9b10-02096ff20261][bypass security measures]]
+
+* Extras
+- ~--stats-every=5s~

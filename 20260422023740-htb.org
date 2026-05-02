@@ -7,6 +7,7 @@
 - [[id:4000d74d-e4b0-43d2-b344-96024db4afba][nmap]]
 - [[id:a0cb0a72-c1e6-4446-a31a-c223e024cf81][File Transfers]]
 - [[id:6aeb476f-4796-4ccd-9e81-c7fd01e25f5c][Metasploit]]
+- [[id:257565c0-e451-43e7-bbf7-ef11c5baad01][shells payloads]]
 
 #+begin_quote
 fileless attacks run the payload directly in memory or leverage legitimate system tools to run malicious code without having to drop executable files on the disk

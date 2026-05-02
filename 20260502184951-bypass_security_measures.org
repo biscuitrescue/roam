@@ -1,0 +1,143 @@
+:PROPERTIES:
+:ID:       34519d60-3236-4019-9b10-02096ff20261
+:END:
+#+title: bypass security measures
+#+OPTIONS: toc:2
+
+* TOC :toc:
+- [[#firewalls][Firewalls]]
+  - [[#determining-firewalls--rules][Determining Firewalls & rules]]
+  - [[#syn-scan][SYN Scan]]
+  - [[#ack-scan][ACK scan]]
+- [[#idsips][IDS/IPS]]
+  - [[#ids][IDS]]
+  - [[#ips][IPS]]
+- [[#decoys][Decoys]]
+- [[#dns-proxying][DNS Proxying]]
+
+* Firewalls
+- security measure against unauth connection attempts from external networks.
+- every firewall security system based on software component which monitors network traffic b/w firewall & incoming data connections.
+- decides how to handle connection based on rules set.
+
+
+** Determining Firewalls & rules
+- ~-sA~ -> TCP ACK scan much harder to filter for firewalls & IDS/IPS than ~-sS~ or ~-sT~ -> only TCP packet w =ACK= flag sent.
+- when host closed/open -> host must respond w =RST=
+- all connection attempts w =SYN= flag from external networks are usually blocked.
+- packets w =ACK= are often passed -> firewall cannot determine whether connection originated from external/internal network.
+
+
+** SYN Scan
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p 21,22,25 -sS -Pn -n --disable-arp-ping --packet-trace
+
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-06-21 14:56 CEST
+SENT (0.0278s) TCP 10.10.14.2:57347 > 10.129.2.28:22 S ttl=53 id=22412 iplen=44  seq=4092255222 win=1024 <mss 1460>
+SENT (0.0278s) TCP 10.10.14.2:57347 > 10.129.2.28:25 S ttl=50 id=62291 iplen=44  seq=4092255222 win=1024 <mss 1460>
+SENT (0.0278s) TCP 10.10.14.2:57347 > 10.129.2.28:21 S ttl=58 id=38696 iplen=44  seq=4092255222 win=1024 <mss 1460>
+RCVD (0.0329s) ICMP [10.129.2.28 > 10.10.14.2 Port 21 unreachable (type=3/code=3) ] IP [ttl=64 id=40884 iplen=72 ]
+RCVD (0.0341s) TCP 10.129.2.28:22 > 10.10.14.2:57347 SA ttl=64 id=0 iplen=44  seq=1153454414 win=64240 <mss 1460>
+RCVD (1.0386s) TCP 10.129.2.28:22 > 10.10.14.2:57347 SA ttl=64 id=0 iplen=44  seq=1153454414 win=64240 <mss 1460>
+SENT (1.1366s) TCP 10.10.14.2:57348 > 10.129.2.28:25 S ttl=44 id=6796 iplen=44  seq=4092320759 win=1024 <mss 1460>
+Nmap scan report for 10.129.2.28
+Host is up (0.0053s latency).
+
+PORT   STATE    SERVICE
+21/tcp filtered ftp
+22/tcp open     ssh
+25/tcp filtered smtp
+MAC Address: DE:AD:00:00:BE:EF (Intel Corporate)
+
+Nmap done: 1 IP address (1 host up) scanned in 0.07 seconds
+#+end_src
+
+** ACK scan
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p 21,22,25 -sA -Pn -n --disable-arp-ping --packet-trace
+
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-06-21 14:57 CEST
+SENT (0.0422s) TCP 10.10.14.2:49343 > 10.129.2.28:21 A ttl=49 id=12381 iplen=40  seq=0 win=1024
+SENT (0.0423s) TCP 10.10.14.2:49343 > 10.129.2.28:22 A ttl=41 id=5146 iplen=40  seq=0 win=1024
+SENT (0.0423s) TCP 10.10.14.2:49343 > 10.129.2.28:25 A ttl=49 id=5800 iplen=40  seq=0 win=1024
+RCVD (0.1252s) ICMP [10.129.2.28 > 10.10.14.2 Port 21 unreachable (type=3/code=3) ] IP [ttl=64 id=55628 iplen=68 ]
+RCVD (0.1268s) TCP 10.129.2.28:22 > 10.10.14.2:49343 R ttl=64 id=0 iplen=40  seq=1660784500 win=0
+SENT (1.3837s) TCP 10.10.14.2:49344 > 10.129.2.28:25 A ttl=59 id=21915 iplen=40  seq=0 win=1024
+Nmap scan report for 10.129.2.28
+Host is up (0.083s latency).
+
+PORT   STATE      SERVICE
+21/tcp filtered   ftp
+22/tcp unfiltered ssh
+25/tcp filtered   smtp
+MAC Address: DE:AD:00:00:BE:EF (Intel Corporate)
+
+Nmap done: 1 IP address (1 host up) scanned in 0.15 seconds
+#+end_src
+
+* IDS/IPS
+- software based components
+- passive traffic monitoring system -> harder to detect than firewall
+** IDS
+- scans network for potential attacks
+- analyzes -> pattern matching & signature
+- reports
+- analyze all connections b/w hosts.
+** IPS
+complements IDS by taking specific defensive measures if potential attack should have been detected.
+- if specific patterns detected (service Detection scan) -> IPS may prevent pending connection attempts
+- takes measures configured by admin independently to prevent potential attacks.
+
+* Decoys
+- when admins block specific subnets from diff regions in principle.
+- prevents access to target network.
+- also when IPS blocks us.
+- ~-D RND:5~ -> nmap generates random IP addrs inserted into IP header to disguise origin of packet sent.
+- real IP randomly placed b/w generates IP addrs.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p 80 -sS -Pn -n --disable-arp-ping --packet-trace -D RND:5
+
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-06-21 16:14 CEST
+SENT (0.0378s) TCP 102.52.161.59:59289 > 10.129.2.28:80 S ttl=42 id=29822 iplen=44  seq=3687542010 win=1024 <mss 1460>
+SENT (0.0378s) TCP 10.10.14.2:59289 > 10.129.2.28:80 S ttl=59 id=29822 iplen=44  seq=3687542010 win=1024 <mss 1460>
+SENT (0.0379s) TCP 210.120.38.29:59289 > 10.129.2.28:80 S ttl=37 id=29822 iplen=44  seq=3687542010 win=1024 <mss 1460>
+SENT (0.0379s) TCP 191.6.64.171:59289 > 10.129.2.28:80 S ttl=38 id=29822 iplen=44  seq=3687542010 win=1024 <mss 1460>
+SENT (0.0379s) TCP 184.178.194.209:59289 > 10.129.2.28:80 S ttl=39 id=29822 iplen=44  seq=3687542010 win=1024 <mss 1460>
+SENT (0.0379s) TCP 43.21.121.33:59289 > 10.129.2.28:80 S ttl=55 id=29822 iplen=44  seq=3687542010 win=1024 <mss 1460>
+RCVD (0.1370s) TCP 10.129.2.28:80 > 10.10.14.2:59289 SA ttl=64 id=0 iplen=44  seq=4056111701 win=64240 <mss 1460>
+Nmap scan report for 10.129.2.28
+Host is up (0.099s latency).
+
+PORT   STATE SERVICE
+80/tcp open  http
+MAC Address: DE:AD:00:00:BE:EF (Intel Corporate)
+
+Nmap done: 1 IP address (1 host up) scanned in 0.15 seconds
+#+end_src
+
+~biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -n -Pn -p 445 -O -S 10.129.2.200 -e tun0~
+
+* DNS Proxying
+- nmap performs reverse DNS Resolution.
+- DNS Queries passed.
+- made over =UDP port 53=
+- =TCP port 53= was prev only used for =Zone Transfers= b/w DNS Servers or data transfer larger than 512B. Changing d/t IPv6, DNSSEC expansions.
+- specified using ~--dns-server~
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p50000 -sS -Pn -n --disable-arp-ping --packet-trace --source-port 53
+
+SENT (0.0482s) TCP 10.10.14.2:53 > 10.129.2.28:50000 S ttl=58 id=27470 iplen=44  seq=4003923435 win=1024 <mss 1460>
+RCVD (0.0608s) TCP 10.129.2.28:50000 > 10.10.14.2:53 SA ttl=64 id=0 iplen=44  seq=540635485 win=64240 <mss 1460>
+Nmap scan report for 10.129.2.28
+Host is up (0.013s latency).
+
+PORT      STATE SERVICE
+50000/tcp open  ibm-db2
+MAC Address: DE:AD:00:00:BE:EF (Intel Corporate)
+
+Nmap done: 1 IP address (1 host up) scanned in 0.08 seconds
+#+end_src
+
+*** Connecting to filtered port.
+~ncat -nv --source-port 53 10.129.2.28 50000~

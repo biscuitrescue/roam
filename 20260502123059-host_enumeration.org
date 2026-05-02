@@ -13,6 +13,21 @@
   - [[#discovering-udp-open-ports][Discovering UDP open ports]]
 - [[#saving-results][Saving results]]
   - [[#style-sheets][Style Sheets]]
+- [[#service-enumeration][Service Enumeration]]
+  - [[#version-detection][Version Detection]]
+  - [[#banner-grabbing][Banner Grabbing]]
+  - [[#lab-solved-by][lab solved by]]
+- [[#nmap-scripting-engine][Nmap Scripting Engine]]
+  - [[#default][default]]
+  - [[#specific-scripts-category][specific scripts category]]
+  - [[#defined-scripts][defined scripts]]
+  - [[#nmap---specifying-scripts][Nmap - specifying scripts]]
+  - [[#vulnerability-assessment][Vulnerability Assessment]]
+- [[#performance][Performance]]
+  -  [[#timeouts][Timeouts]]
+  - [[#max-retries][Max Retries]]
+  - [[#rates][Rates]]
+  - [[#timing][Timing]]
 
 * Host Discovery
 - most effective -> *ICMP echo requests*
@@ -157,3 +172,223 @@ Nmap done: 1 IP address (1 host up) scanned in 98.07 seconds
 - create HTML reports
 - convert xml -> HTML using =xsltproc=
 ~xsltproc target.xml -o target.html~
+
+* Service Enumeration
+
+** Version Detection
+- recommended to perform quick port scan first -> gives small overview of avl ports
+- causes less traffic -> stealthy
+- run port scan in bg (~-p-~)
+- =verbosity level= (~-v~ / ~-vv~) -> shows open ports directly when nmap detectsessential to determine application 
+
+** Banner Grabbing
+- nmap looks at banners of scanned ports and prints them out.
+- cannot id versions through banners.
+- attempts to id through signature based matching system. -> increases duration.
+- automatic scan can miss some info because sometimes nmap doesnt know how to handle.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p- -sV -Pn -n --disable-arp-ping --packet-trace
+
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-06-16 20:10 CEST
+<SNIP>
+NSOCK INFO [0.4200s] nsock_trace_handler_callback(): Callback: READ SUCCESS for EID 18 [10.129.2.28:25] (35 bytes): 220 inlane ESMTP Postfix (Ubuntu)..
+Service scan match (Probe NULL matched with NULL line 3104): 10.129.2.28:25 is smtp.  Version: |Postfix smtpd|||
+NSOCK INFO [0.4200s] nsock_iod_delete(): nsock_iod_delete (IOD #1)
+Nmap scan report for 10.129.2.28
+Host is up (0.076s latency).
+
+PORT   STATE SERVICE VERSION
+25/tcp open  smtp    Postfix smtpd
+MAC Address: DE:AD:00:00:BE:EF (Intel Corporate)
+Service Info: Host:  inlane
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 0.47 seconds
+#+end_src
+
+- we can see port status, Service name, hostname.
+
+=NSOCK INFO [0.4200s] nsock_trace_handler_callback(): Callback: READ SUCCESS for EID 18 [10.129.2.28:25] (35 bytes): 220 inlane ESMTP Postfix (Ubuntu)..=
+
+- we can see what nmap didnt show us by connecting to smtp server using nc and intercepting traffic using tcpdump
+
+
+*** Tcpdump
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo tcpdump -i eth0 host 10.10.14.2 and 10.129.2.28
+
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+#+end_src
+
+*** NC
+#+begin_src bash
+biscuitrescue@htb[/htb]$  nc -nv 10.129.2.28 25
+
+Connection to 10.129.2.28 port 25 [tcp/*] succeeded!
+220 inlane ESMTP Postfix (Ubuntu)
+#+end_src
+
+*** intercepted traffic
+#+begin_src bash
+18:28:07.128564 IP 10.10.14.2.59618 > 10.129.2.28.smtp: Flags [S], seq 1798872233, win 65535, options [mss 1460,nop,wscale 6,nop,nop,TS val 331260178 ecr 0,sackOK,eol], length 0
+18:28:07.255151 IP 10.129.2.28.smtp > 10.10.14.2.59618: Flags [S.], seq 1130574379, ack 1798872234, win 65160, options [mss 1460,sackOK,TS val 1800383922 ecr 331260178,nop,wscale 7], length 0
+18:28:07.255281 IP 10.10.14.2.59618 > 10.129.2.28.smtp: Flags [.], ack 1, win 2058, options [nop,nop,TS val 331260304 ecr 1800383922], length 0
+18:28:07.319306 IP 10.129.2.28.smtp > 10.10.14.2.59618: Flags [P.], seq 1:36, ack 1, win 510, options [nop,nop,TS val 1800383985 ecr 331260304], length 35: SMTP: 220 inlane ESMTP Postfix (Ubuntu)
+18:28:07.319426 IP 10.10.14.2.59618 > 10.129.2.28.smtp: Flags [.], ack 36, win 2058, options [nop,nop,TS val 331260368 ecr 1800383985], length 0
+** lab solved by
+~nc -nv <IP> <PORT>~
+* Nmap Scripting Engine
+[[https://nmap.org/nsedoc/index.html]]
+- possibility to create scripts in Lua for interaction w services.
+- 14 total categories:
+
+|-----------+--------------------------------------------------------------------|
+| *Category*  | *Description*                                                        |
+| auth      | Determination of auth creds                                        |
+| broadcast | scripts used for host discovery by broadcasting & discovered hosts |
+|           | can be auto added to remaining scans.                              |
+| brute     | execs scripts which try to log in to respective serv by            |
+|           | brute-forcing w creds                                              |
+| default   | default scripts ~-sC~                                                |
+| discovery | eval of accessible services                                        |
+| dos       | used to check for DoS vulns -> used less as harms services.        |
+| exploit   | tries to exploit known vulns for scanned port                      |
+| external  | scripts which use external services for further processing         |
+| fuzzer    | id vulns and unexpected packet handling by sending diff fields     |
+| intrusive | could negatively affect target system                              |
+| malware   | check if malware affects target system                             |
+| safe      | defensive scripts which do not perform intrusive & destructive     |
+|           | access.                                                            |
+| version   | extension for service detection                                    |
+| vuln      | id of specific vulns                                               |
+|-----------+--------------------------------------------------------------------|
+
+** default
+~sudo nmap <target> -sC~
+
+** specific scripts category
+~sudo nmap <target> --script <category>~
+
+** defined scripts
+~sudo nmap <target> --script <script-name>,<script-name>,...~
+
+** Nmap - specifying scripts
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p 25 --script banner,smtp-commands
+
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-06-16 23:21 CEST
+Nmap scan report for 10.129.2.28
+Host is up (0.050s latency).
+
+PORT   STATE SERVICE
+25/tcp open  smtp
+|_banner: 220 inlane ESMTP Postfix (Ubuntu)
+|_smtp-commands: inlane, PIPELINING, SIZE 10240000, VRFY, ETRN, STARTTLS, ENHANCEDSTATUSCODES, 8BITMIME, DSN, SMTPUTF8,
+MAC Address: DE:AD:00:00:BE:EF (Intel Corporate)
+#+end_src
+- can recognise *Ubuntu* distro by using =banner= script.
+- =smtp-commands= shows us which command we can use by interacting w target SMTP server.
+# may help find existing users on target
+- ~-A~ -> aggressive: scans target w multiple options -> (~-sV~, ~-O~, ~--traceroute~, ~-sC~)
+
+*** Aggressive Scan
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p 80 -A
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-06-17 01:38 CEST
+Nmap scan report for 10.129.2.28
+Host is up (0.012s latency).
+
+PORT   STATE SERVICE VERSION
+80/tcp open  http    Apache httpd 2.4.29 ((Ubuntu))
+|_http-generator: WordPress 5.3.4
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-title: blog.inlanefreight.com
+MAC Address: DE:AD:00:00:BE:EF (Intel Corporate)
+Warning: OSScan results may be unreliable because we could not find at least 1 open and 1 closed port
+Aggressive OS guesses: Linux 2.6.32 (96%), Linux 3.2 - 4.9 (96%), Linux 2.6.32 - 3.10 (96%), Linux 3.4 - 3.10 (95%), Linux 3.1 (95%), Linux 3.2 (95%), 
+AXIS 210A or 211 Network Camera (Linux 2.6.17) (94%), Synology DiskStation Manager 5.2-5644 (94%), Netgear RAIDiator 4.2.28 (94%), 
+Linux 2.6.32 - 2.6.35 (94%)
+No exact OS matches for host (test conditions non-ideal).
+Network Distance: 1 hop
+
+TRACEROUTE
+HOP RTT      ADDRESS
+1   11.91 ms 10.129.2.28
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 11.36 seconds
+#+end_src
+** Vulnerability Assessment
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.28 -p 80 -sV --script vuln 
+
+Nmap scan report for 10.129.2.28
+Host is up (0.036s latency).
+
+PORT   STATE SERVICE VERSION
+80/tcp open  http    Apache httpd 2.4.29 ((Ubuntu))
+| http-enum:
+|   /wp-login.php: Possible admin folder
+|   /readme.html: Wordpress version: 2
+|   /: WordPress version: 5.3.4
+|   /wp-includes/images/rss.png: Wordpress version 2.2 found.
+|   /wp-includes/js/jquery/suggest.js: Wordpress version 2.5 found.
+|   /wp-includes/images/blank.gif: Wordpress version 2.6 found.
+|   /wp-includes/js/comment-reply.js: Wordpress version 2.7 found.
+|   /wp-login.php: Wordpress login page.
+|   /wp-admin/upgrade.php: Wordpress login page.
+|_  /readme.html: Interesting, a readme.
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-stored-xss: Couldn't find any stored XSS vulnerabilities.
+| http-wordpress-users:
+| Username found: admin
+|_Search stopped at ID #25. Increase the upper limit if necessary with 'http-wordpress-users.limit'
+| vulners:
+|   cpe:/a:apache:http_server:2.4.29:
+|       CVE-2019-0211   7.2 https://vulners.com/cve/CVE-2019-0211
+|       CVE-2018-1312   6.8 https://vulners.com/cve/CVE-2018-1312
+|       CVE-2017-15715  6.8 https://vulners.com/cve/CVE-2017-15715
+<SNIP>
+#+end_src
+
+* Performance 
+
+**  Timeouts
+- when nmap sends packet, it takes some time (=Round-Trip-Time= - =RTT=) to rcv response from scanned port.
+- defaults -> (~--min-RTT-timeout~ = =100ms=)
+
+- setting init RTT timeout to too short timeperiod -> overlook hosts. 
+
+**** default scan
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.0/24 -F
+
+<SNIP>
+Nmap done: 256 IP addresses (10 hosts up) scanned in 39.44 seconds
+#+end_src
+
+**** Optimised RTT
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap 10.129.2.0/24 -F --initial-rtt-timeout 50ms --max-rtt-timeout 100ms
+
+<SNIP>
+Nmap done: 256 IP addresses (8 hosts up) scanned in 12.29 seconds
+#+end_src
+
+** Max Retries
+- default = 10
+- ~--max-retries~
+
+** Rates
+- during white-box pentesting -> may get whitelisted to check systems for vulns, test protection measures.
+- if we know bandwidth, we can work w rate of packets sent. 
+- speeds up scans.
+- ~--min-rate <number>~
+
+** Timing
+- ~-T <0-5>~
+- determine aggressiveness of scan.
+- default = 3
+[[https://nmap.org/book/performance-timing-templates.html]]
+[[https://nmap.org/book/man-performance.html]]
