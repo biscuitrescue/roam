@@ -12,6 +12,7 @@
   - [[#cloud-resources][Cloud Resources]]
 - [[#host-based][Host Based]]
   - [[#ftp][FTP]]
+  - [[#tftp][TFTP]]
 
 * Enumeration
 ** Methodology
@@ -159,3 +160,29 @@ Ports:
   
 * Host Based
 ** FTP
+- one of the oldest protocols.
+- runs on application layer of TCP/IP stack.
+- =Clear Text= protocol
+  
+*** Upload / Download
+1. 2 channels opened
+2. client/server est connection -> =TCP 21=.
+3. client sends commands to server. server ret status codes.
+4. both comm participants can est data channel -> =TCP 20=. =20= exclusively for data transmission.
+5. protocol watches for errs.
+6. if connection broken during transmission, transport resumed after re-est contact.
+
+*** Active FTP
+- client est connection via =TCP 20=.
+- informs server which client-side port server can transmit its responses to.
+- if firewall protects client, server can't reply -> all external connections blocked.
+  
+*** Passive FTP
+- server announces port through which client can est data channel
+- firewall doesnt block transfer as client init connection.
+
+*** Commands & Status codes
+- [[https://web.archive.org/web/20230326204635/https://www.smartfile.com/blog/the-ultimate-ftp-commands-list/][commands]]
+- [[https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes][status codes]]
+
+** TFTP
