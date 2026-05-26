@@ -13,9 +13,9 @@
 - [[#host-based][Host Based]]
   - [[#ftp][FTP]]
   - [[#tftp][TFTP]]
-  - [[#footprinting-service][footprinting service]]
   - [[#smb][SMB]]
   - [[#nfs][NFS]]
+  - [[#dns][DNS]]
 
 * Enumeration
 ** Methodology
@@ -208,13 +208,13 @@ Ports:
 wget -m --no-passive ftp://anonymous:anonymous@<ip>
    #+end_src
 
-** footprinting service
+*** footprinting service
 
-*** Nmap ftp scripts
+**** Nmap ftp scripts
 ~--script-updatedb~
 ~--script-trace~
 
-*** Openssl
+**** Openssl
 - if ftp server runs w TLS/SSL cert.
 - SSL -> allows us to recognise =username= & =email_address=
   #+begin_src bash
@@ -552,3 +552,328 @@ Completed after 0.61 seconds
 #+begin_quote
 if we have access to the system via SSH and want to read files from another folder that a specific user can read, we would need to upload a shell to the NFS share that has the SUID of that user and then run the shell via the SSH user.
 #+end_quote
+
+** DNS
+- system for resolving computer names into IP addrs.
+- doesnt have central DB
+- stores and outputs additional info about services associated with domain.
+- DNS query can also be used to determine which computer serves as the EMAIL server for domain in question or what domain's name servers are called.
+
+*** Types of DNS Servers
+1. Root server: 
+   - responsible for top-lvl domains (=TLD=)
+     * only required if name server doesn't respond.
+   - central interface b/w users and content on internet.
+   - [[https://www.icann.org/][Internet Corporation for Assigned Names and Numbers]] (=ICANN=) coordinates work of root name servers.
+   - =13= root servers around globe
+2. Authoritative name server:
+   - hold authority for a particular zone
+   - answer queries from their area of responsibility
+   - information is binding
+   - if auth name server cant answer, root takes over.
+   - auth NS provide answers to recursive DNS NS.
+3. Non-auhoritative name server:
+   - not responsible for particular NDS zone.
+   - collect info on specific DNS zones themselves.
+   - done through recursive/iterative DNS querying
+4. Caching DNS server:
+   - cache info from other NS for specified period.
+   - auth NS determines duration of storage
+5. Fwding server:
+   - fwd DNS queries to another DNS.
+   - only one function
+6. Resolver:
+   - not auth DNS.
+   - perform name resolution locally in computer/router
+
+*** DNS Encryption
+- Mainly unencrypted
+- =DNS over TLS= (DoT)
+- =DNS over HTTPS= (DoH)
+- =DNSCrypt= encrypts traffic b/w computer and name server
+
+*** DNS Records
+**** A
+ret IPv4 addr of req domain
+**** AAAA
+ret IPv6 addr of req domain
+**** MX
+ret responsible mail servers
+**** NS
+ret DNS servers
+**** TXT
+- all-rounder
+- eg: validate google search console / validate SSL cert.
+- SPF, DMARC entries set to validate mail traffic & protect from spam.
+**** CNAME
+alias for another domain name.
+- if you want =www.htb.eu= -> =hackthebox.eu=, create record for =hackthebox.eu= and CNAME record for =www.htb.eu=
+**** PTR
+- reverse lookup
+- converts IP -> valid domain names
+**** SOA
+- provides info about corresponding DNS zone & email addr of admin contact
+- located in domain's zone file.
+- specifies who is responsible for operation of domain and how DNS info for domain is managed.
+  
+*** Default Config
+- 3 types of config files:
+  1) local DNS config files
+  2) zone files
+  3) reverse name resolution files
+- [[https://www.isc.org/bind/][Bind9]] v common on linux distros. ([[https://wiki.debian.org/Bind9][Bind9 Docs]])
+  - local config (=named.conf=)
+    * div into:
+      1. general settings
+      2. zone entries -> individual domains.
+    * =named.conf.local=
+    * =named.conf.options=
+    * =named.conf.log=
+
+**** Local DNS Config
+- =/etc/bind/named.conf.local=
+
+**** Zone Files
+- =/etc/bind/db.domain.com=
+- text file which desc DNS zone w BIND file format
+- point of delegation in DNS tree.
+- describes zone completely
+  - must be *precisely one* =SOA= record and *at least one* =NS= record
+  - =SOA= resource usually at beginning of zone file
+- main goal of global rules -> improve readability of zone files.
+- syntax err -> entire file unusable -> name server behaves as if zone file doesn't exist -> responds to DNS queries w =SERVFAIL= err
+
+- all =forward records= entered according to BIND format.
+- allows DNS to ID which domain, hostname, role the IP addrs belong to
+
+***** Bind
+- industy preferred zone file format.
+- well est in DNS server software
+
+**** Reverse Name Resolution Zone File
+- =/etc/bind/db.10.129.14=
+
+*** Dangerous Settings
+- list of vulns -> [[https://www.cvedetails.com/product/144/ISC-Bind.html?vendor_id=64][CVEdetails]], [[https://web.archive.org/web/20250329174745/https://securitytrails.com/blog/most-popular-types-dns-attacks][most popular attacks on DNS]]
+
+*** Footprinting DNS
+- DNS server can be queried as to which other name servers are known
+- done using NS record & specs of DNS we want to query using =@= char.
+
+**** DIG - NS Query
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig ns inlanefreight.htb @10.129.14.128
+
+; <<>> DiG 9.16.1-Ubuntu <<>> ns inlanefreight.htb @10.129.14.128
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 45010
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 2
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: ce4d8681b32abaea0100000061475f73842c401c391690c7 (good)
+;; QUESTION SECTION:
+;inlanefreight.htb.             IN      NS
+
+;; ANSWER SECTION:
+inlanefreight.htb.      604800  IN      NS      ns.inlanefreight.htb.
+
+;; ADDITIONAL SECTION:
+ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
+
+;; Query time: 0 msec
+;; SERVER: 10.129.14.128#53(10.129.14.128)
+;; WHEN: So Sep 19 18:04:03 CEST 2021
+;; MSG SIZE  rcvd: 107
+#+end_src
+
+**** DIG - Version Query
+- sometimes possible to query DNS server's version using class *CHAOS* and type *TXT*.
+- entry must exist on DNS server.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig CH TXT version.bind 10.129.120.85
+
+; <<>> DiG 9.10.6 <<>> CH TXT version.bind
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 47786
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; ANSWER SECTION:
+version.bind.       0       CH      TXT     "9.10.6-P1"
+
+;; ADDITIONAL SECTION:
+version.bind.       0       CH      TXT     "9.10.6-P1-Debian"
+
+;; Query time: 2 msec
+;; SERVER: 10.129.120.85#53(10.129.120.85)
+;; WHEN: Wed Jan 05 20:23:14 UTC 2023
+;; MSG SIZE  rcvd: 101
+#+end_src
+
+**** DIG - Any Query
+to view all avl records.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig any inlanefreight.htb @10.129.14.128
+
+; <<>> DiG 9.16.1-Ubuntu <<>> any inlanefreight.htb @10.129.14.128
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 7649
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 2
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: 064b7e1f091b95120100000061476865a6026d01f87d10ca (good)
+;; QUESTION SECTION:
+;inlanefreight.htb.             IN      ANY
+
+;; ANSWER SECTION:
+inlanefreight.htb.      604800  IN      TXT     "v=spf1 include:mailgun.org include:_spf.google.com include:spf.protection.outlook.com include:_spf.atlassian.net ip4:10.129.124.8 ip4:10.129.127.2 ip4:10.129.42.106 ~all"
+inlanefreight.htb.      604800  IN      TXT     "atlassian-domain-verification=t1rKCy68JFszSdCKVpw64A1QksWdXuYFUeSXKU"
+inlanefreight.htb.      604800  IN      TXT     "MS=ms97310371"
+inlanefreight.htb.      604800  IN      SOA     inlanefreight.htb. root.inlanefreight.htb. 2 604800 86400 2419200 604800
+inlanefreight.htb.      604800  IN      NS      ns.inlanefreight.htb.
+
+;; ADDITIONAL SECTION:
+ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
+
+;; Query time: 0 msec
+;; SERVER: 10.129.14.128#53(10.129.14.128)
+;; WHEN: So Sep 19 18:42:13 CEST 2021
+;; MSG SIZE  rcvd: 437
+#+end_src
+
+**** DIG - AXFR Zone Transfer
+- *Zone Transfer* -> transfer of zones to another server in DNS. involves mere transfer of files or records and detection of discrepancies in data sets of servers involved
+  - happens over =TCP/53=.
+  - Procedure abbr. -> *Async Full Transfer Zone*
+
+- DNS fail -> severe consequences to company.
+  - zone file invariably kept identical on several name servers.
+  - when changes made, all servers must be synced.
+  - sync b/w servers -> *zone transfer*
+  - =rndc-key= -> servers make sure that they comm with their own master or slave.
+
+- DNS entries created mod, del only on primary.
+  - done by manually editing relevant zone files / automatically by a dynamic update from DB.
+  - *MASTER* -> serves as direct source for syncing a zone file.
+  - *SLAVE* -> obtains zone data from master.
+    - primary always master.
+    - secondary -> master/slave.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig axfr inlanefreight.htb @10.129.14.128
+
+; <<>> DiG 9.16.1-Ubuntu <<>> axfr inlanefreight.htb @10.129.14.128
+;; global options: +cmd
+inlanefreight.htb.      604800  IN      SOA     inlanefreight.htb. root.inlanefreight.htb. 2 604800 86400 2419200 604800
+inlanefreight.htb.      604800  IN      TXT     "MS=ms97310371"
+inlanefreight.htb.      604800  IN      TXT     "atlassian-domain-verification=t1rKCy68JFszSdCKVpw64A1QksWdXuYFUeSXKU"
+inlanefreight.htb.      604800  IN      TXT     "v=spf1 include:mailgun.org include:_spf.google.com include:spf.protection.outlook.com include:_spf.atlassian.net ip4:10.129.124.8 ip4:10.129.127.2 ip4:10.129.42.106 ~all"
+inlanefreight.htb.      604800  IN      NS      ns.inlanefreight.htb.
+app.inlanefreight.htb.  604800  IN      A       10.129.18.15
+internal.inlanefreight.htb. 604800 IN   A       10.129.1.6
+mail1.inlanefreight.htb. 604800 IN      A       10.129.18.201
+ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
+inlanefreight.htb.      604800  IN      SOA     inlanefreight.htb. root.inlanefreight.htb. 2 604800 86400 2419200 604800
+;; Query time: 4 msec
+;; SERVER: 10.129.14.128#53(10.129.14.128)
+;; WHEN: So Sep 19 18:51:19 CEST 2021
+;; XFR size: 9 records (messages 1, bytes 520)
+#+end_src
+
+**** Subdomain Brute Forcing
+#+begin_src 
+
+biscuitrescue@htb[/htb]$ dnsenum --dnsserver 10.129.14.128 --enum -p 0 -s 0 -o subdomains.txt -f /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt inlanefreight.htb
+
+dnsenum VERSION:1.2.6
+
+-----   inlanefreight.htb   -----
+
+
+Host's addresses:
+__________________
+
+
+
+Name Servers:
+______________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+
+Mail (MX) Servers:
+___________________
+
+
+
+Trying Zone Transfers and getting Bind Versions:
+_________________________________________________
+
+unresolvable name: ns.inlanefreight.htb at /usr/bin/dnsenum line 900 thread 1.
+
+Trying Zone Transfer for inlanefreight.htb on ns.inlanefreight.htb ...
+AXFR record query failed: no nameservers
+
+
+Brute forcing with /home/cry0l1t3/Pentesting/SecLists/Discovery/DNS/subdomains-top1million-110000.txt:
+_______________________________________________________________________________________________________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+mail1.inlanefreight.htb.                 604800   IN    A        10.129.18.201
+app.inlanefreight.htb.                   604800   IN    A        10.129.18.15
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+...SNIP...
+done.
+
+#+end_src
+
+- [[https://github.com/fwaeytens/dnsenum][DNSenum]]
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dnsenum --dnsserver 10.129.14.128 --enum -p 0 -s 0 -o subdomains.txt -f /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt inlanefreight.htb
+
+dnsenum VERSION:1.2.6
+
+-----   inlanefreight.htb   -----
+
+
+Host's addresses:
+__________________
+
+
+
+Name Servers:
+______________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+
+Mail (MX) Servers:
+___________________
+
+
+
+Trying Zone Transfers and getting Bind Versions:
+_________________________________________________
+
+unresolvable name: ns.inlanefreight.htb at /usr/bin/dnsenum line 900 thread 1.
+
+Trying Zone Transfer for inlanefreight.htb on ns.inlanefreight.htb ...
+AXFR record query failed: no nameservers
+
+
+Brute forcing with /home/cry0l1t3/Pentesting/SecLists/Discovery/DNS/subdomains-top1million-110000.txt:
+_______________________________________________________________________________________________________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+mail1.inlanefreight.htb.                 604800   IN    A        10.129.18.201
+app.inlanefreight.htb.                   604800   IN    A        10.129.18.15
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+...SNIP...
+done.
+#+end_src
