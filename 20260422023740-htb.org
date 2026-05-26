@@ -29,3 +29,5 @@ fileless attacks run the payload directly in memory or leverage legitimate syste
 ~-T~ -> upload local file to remote server
 ** IPPSEC blogs
 - [[https://ippsec.rocks/?#][IPPSEC]]
+** OWASP TOP 10
+- [[https://github.com/boomcamp/django-security][GitHub]]
