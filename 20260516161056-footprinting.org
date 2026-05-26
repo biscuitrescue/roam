@@ -15,6 +15,7 @@
   - [[#tftp][TFTP]]
   - [[#footprinting-service][footprinting service]]
   - [[#smb][SMB]]
+  - [[#nfs][NFS]]
 
 * Enumeration
 ** Methodology
@@ -502,3 +503,52 @@ domain_logoff_information:
 
 Completed after 0.61 seconds
 #+end_src
+** NFS
+- ports =111=, =2049=
+- Network FS -> Sun microsystems
+- same purpose as SMB
+- purpose -> access S over network as if local
+- used between linux & unix.
+- cant comm directly w smb servers.
+- internet standard -> governs procedures in =distributed file system=
+
+  + NFSv3 -> authenticates client computer
+  + NFSv4 -> user must authenticate, only port 2049 used
+
+    |-------------+--------------------------------------------|
+    | Version     | Features                                   |
+    | v2          | entirely UDP                               |
+    | v3          | var file size, better err reporting        |
+    | v4          | - req kerberos, works through fireweall    |
+    |             | - no need for portmappers                  |
+    |             | - supports CLs                             |
+    |             | - applies state-based ops                  |
+    |             | - perrformance improvements, high security |
+    |             | - first version to have stateful protocol  |
+    |-------------+--------------------------------------------|
+
+- based on [[https://en.wikipedia.org/wiki/Sun_RPC][Open network Computing Remote Procedure Call]]
+- exposed on TCP & UDP =111=
+- uses [[https://en.wikipedia.org/wiki/External_Data_Representation][External data repr]] (=XDR=) for system-independent exchange of data.
+- no mechanism for auth(entication/orisation)
+- authentication -> shifted to to RPC protocol's options.
+- authorisation -> derived from avl FS info
+- server responsible for translating client user info into FS format & converting corresponding authorisation details into req UNIX syntax
+- most common auth via UNIX -> =UID/GID=, =group membership=
+
++ problem:
+  - client & server do not necessarily have same mappings of UID/GID to users and groups.
+*** Default Config
+- =/etc/exports= -> contains table of physics FS on NFS server accessible by clients.
+*** Enumeration
+~sudo nmap --script nfs* 10.129.14.128 -sV -p111,2049~
+- =rpcinfo= NSE -> list of all cur running RPC services, names & desc, ports under use.
+  
+**** Show avl NFS shares:
+~showmount -e <ip>~
+**** mounting NFS share
+~mount -t nfs <ip>:/ ./<dir-name>/ -o nolock~
+
+#+begin_quote
+if we have access to the system via SSH and want to read files from another folder that a specific user can read, we would need to upload a shell to the NFS share that has the SUID of that user and then run the shell via the SSH user.
+#+end_quote
