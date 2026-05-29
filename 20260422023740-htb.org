@@ -31,3 +31,5 @@ fileless attacks run the payload directly in memory or leverage legitimate syste
 - [[https://ippsec.rocks/?#][IPPSEC]]
 ** OWASP TOP 10
 - [[https://github.com/boomcamp/django-security][GitHub]]
+** Crunch
+- custom wordlists
