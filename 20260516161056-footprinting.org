@@ -23,6 +23,12 @@
   - [[#mssql][MSSQL]]
   - [[#oracle-tns][ORACLE TNS]]
   - [[#ipmi][IPMI]]
+- [[#remote-mgmt-protocols][Remote MGMT Protocols]]
+  - [[#ssh][SSH]]
+  - [[#rsync][RSYNC]]
+  - [[#rdp][RDP]]
+  - [[#winrm][WinRM]]
+  - [[#wmi][WMI]]
 
 * Enumeration
 ** Methodology
@@ -1241,7 +1247,7 @@ read R BLOCK
 
 - to ensure SNMP access wrks across manufacturers & w diff client-server combinations.
 - independent format for storing device info.
-- text file -> all queryable SNMP objects of device are listed in standarised tree hierarchy.
+- text file -> all queryable SNMP objects of device are listed in standardised tree hierarchy.
 - contains atleast one [[*OID]] -> provides unique addr, name, info about type, access rights.
 - written in =Abstract Syntax Notation One= (=ASN.1=) based ASCII test format.
 - do not contain data. explain where to find what info and what it looks like, which ret val for specific OID, which data type used.
@@ -1641,4 +1647,105 @@ msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > run
 [+] 10.129.42.195:623 - IPMI - Hash for user 'ADMIN' matches password 'ADMIN'
 [*] Scanned 1 of 1 hosts (100% complete)
 [*] Auxiliary module execution completed
+#+end_src
+
+* Remote MGMT Protocols
+
+** SSH
+- =TCP 22=
+
+*** footprinting
+- ssh-audit (github.com/jtesta/ssh-audit)
+
+*** change auth method
+- ~ssh -o PreferredAuthentications=password~
+
+** RSYNC
+- =873=
+- delta-transfer algo
+- can be configured to use SSH for secure file transfers by piggybacking on top of established SSH connection ([[https://phoenixnap.com/kb/how-to-rsync-over-ssh][Rsync over SSH]]) (use -e ssh)
+- [[https://hacktricks.wiki/en/network-services-pentesting/873-pentesting-rsync.htmlxs][abuse]]
+
+*** footprinting
+
+**** NMAP
+- ~-p873~
+
+**** probing Accessible shares
+- ~nc -nv <ip> 873~
+
+**** enumerating open share
+- ~rsync -av --list-only rsync://<ip>/<share>~ 
+
+** RDP
+- [[file:20260428021657-misc_file_transfers.org::*RDP][RDP]]
+- =3389=
+- both network firewall, server firewall must allow connections from outside.
+- if NAT used on route b/w client & server, remote computer needs public IP to reach server.
+- RDP has TLS/SSL since Windows Vista
+- Many Windows systems accept inadequate encruption via RDP security
+- installed by default on windows
+- service activated using =server manager=
+- default settings -> allow connections to service only hosts w Network level authentication
+
+*** footprinting
+
+**** Nmap
+- ~-p3389 --script rdp*~
+
+*** RDP Security Check
+- github.com/CiscoCXSecurity/rdp-sec-check
+
+*** Init connection
+- Xfreerdp
+
+** WinRM
+- [[file:20260428021657-misc_file_transfers.org::*Powershell remoting][Powershell remoting]]
+- integrated remote mgmt cli
+- uses *Simple Object Access Protocol*
+- =TCP/5985,5986=, 5986 -> HTTPS
+- Windows Remote Shell -> exec cmd on remote system
+- remote sessions using powershell & event log merging req -> enabled by default -> fter Windows Server 2012
+
+*** Footprinting
+**** nmap~nmap -sV -sC 10.129.201.248 -p5985,5986 --disable-arp-ping -n~
+
+#+begin_quote
+If we want to find out whether one or more remote servers can be reached via WinRM, we can easily do this with the help of PowerShell. The Test-WsMan cmdlet is responsible for this, and the host's name in question is passed to it. In Linux-based environments, we can use the tool called evil-winrm, another penetration testing tool designed to interact with WinRM.
+#+end_quote
+
+**** evil-winrm
+#+begin_src bash
+biscuitrescue@htb[/htb]$ evil-winrm -i 10.129.201.248 -u Cry0l1t3 -p P455w0rD!
+
+Evil-WinRM shell v3.3
+
+Warning: Remote path completions is disabled due to ruby limitation: quoting_detection_proc() function is unimplemented on this machine
+
+Data: For more information, check Evil-WinRM Github: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+
+Info: Establishing connection to remote endpoint
+
+*Evil-WinRM* PS C:\Users\Cry0l1t3\Documents>
+
+#+end_src
+
+** WMI
+- =TCP/135=
+- Windows Management Instrumentation (WMI)
+- extension of Common Information Model, core functionality of standardised Web-Based Enterprise Management for windows
+- allows r/w to almost all settings on windows -> most critical interface in win env for admin & remote maintainance of win computers.
+- usually accessed via Powershell, VBscript, WMIC (Windows Management Instrumentation Console)
+- several programs & DBs
+
+*** Footprinting
+
+**** WMIexec.py
+#+begin_src bash
+biscuitrescue@htb[/htb]$ /usr/share/doc/python3-impacket/examples/wmiexec.py Cry0l1t3:"P455w0rD!"@10.129.201.248 "hostname"
+
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+[*] SMBv3.0 dialect used
+ILF-SQL-01
 #+end_src
