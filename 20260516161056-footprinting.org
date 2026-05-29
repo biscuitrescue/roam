@@ -20,6 +20,7 @@
   - [[#imap--pop3][IMAP & POP3]]
   - [[#snmp-1][SNMP]]
   - [[#mysql][MYSQL]]
+  - [[#mssql][MSSQL]]
 
 * Enumeration
 ** Methodology
@@ -1225,7 +1226,7 @@ read R BLOCK
  * OK [CAPABILITY IMAP4rev1 SASL-IR LOGIN-REFERRALS ID ENABLE IDLE LITERAL+ AUTH=PLAIN] HTB-Academy IMAP4 v.0.21.4
 #+end_src
 
-** SNMP
+** TODO SNMP
 - Simple Network Management Protocol
 - created to monitor network dev
 - handles config tasks and change settings remotely
@@ -1301,3 +1302,144 @@ Signed-off-by: biscuitrescue <karttikeyasinha11@gmail.com>
 *** TODO LEARN OIDS
 
 ** MYSQL
+- port =TCP 3306=
+
+*** Footprinting
+
+**** NMAP
+- ~--script mysql*~
+
+**** Interaction
+- most important DB:
+  1. =system schema= (=sys=)
+  2. =information schema= (=information_scheme=)
+
+- use ~--ssl=FALSE or --skip-ssl~ if it complains for *TLS/SSL* self cert
+
+** MSSQL
+ 
+*** Clients
+- *SSMS*:
+  client-side app. can exist wherever dev plans to manage DB from.
+  we could come Cross vulnerable system with SSMS  w saved creds
+
+*** DBs
+1. *master*: tracks all system info for SQL server instance
+2. *model*: template DB. acts as struct for every new  created.
+3. *msdb*: SQL Server Agent uses this to sched jobs & alerts.
+4. *tempdb*: temp objects
+5. *resource*: read only DB -> sys objects included w server.
+
+*** Default Config
+- runs as =NT SERVICE\MSSQLSERVER= when initially installed and configured to be Accessible in network.
+- connecting from client side -> *Windows Authentication*.
+- encryption not enforced when attempting to connect
+- authentication set to *windows authentication* -> Windows will process login req, use local SAM DB or domain controller (hosting active directory)
+- if compromised account w active dir -> privilege escalation, lateral movement across windows domain env.
+
+*** Dangerous Settings
+1. clients not using encryption to connect to MSSQL server.
+2. self-signed certs when encryption /is/ being used.
+3. [[https://docs.microsoft.com/en-us/sql/tools/configuration-manager/named-pipes-properties?view=sql-server-ver15][named pipes]]
+4. weak & default =sa= creds. admins may forget to disable account.
+
+*** Footprinting service
+- port =TCP 1433=
+
+**** NMAP
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER -sV -p 1433 10.129.201.248
+
+Starting Nmap 7.91 ( https://nmap.org ) at 2021-11-08 09:40 EST
+Nmap scan report for 10.129.201.248
+Host is up (0.15s latency).
+
+PORT     STATE SERVICE  VERSION
+1433/tcp open  ms-sql-s Microsoft SQL Server 2019 15.00.2000.00; RTM
+| ms-sql-ntlm-info: 
+|   Target_Name: SQL-01
+|   NetBIOS_Domain_Name: SQL-01
+|   NetBIOS_Computer_Name: SQL-01
+|   DNS_Domain_Name: SQL-01
+|   DNS_Computer_Name: SQL-01
+|_  Product_Version: 10.0.17763
+
+Host script results:
+| ms-sql-dac: 
+|_  Instance: MSSQLSERVER; DAC port: 1434 (connection failed)
+| ms-sql-info: 
+|   Windows server name: SQL-01
+|   10.129.201.248\MSSQLSERVER: 
+|     Instance name: MSSQLSERVER
+|     Version: 
+|       name: Microsoft SQL Server 2019 RTM
+|       number: 15.00.2000.00
+|       Product: Microsoft SQL Server 2019
+|       Service pack level: RTM
+|       Post-SP patches applied: false
+|     TCP port: 1433
+|     Named pipe: \\10.129.201.248\pipe\sql\query
+|_    Clustered: false
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 8.52 seconds
+
+#+end_src
+
+**** Metasploit
+- aux scanner -> =mssql_ping= -> scans MSSQL service 
+  
+#+begin_src bash
+msf6 auxiliary(scanner/mssql/mssql_ping) > set rhosts 10.129.201.248
+
+rhosts => 10.129.201.248
+
+
+msf6 auxiliary(scanner/mssql/mssql_ping) > run
+
+[*] 10.129.201.248:       - SQL Server information for 10.129.201.248:
+[+] 10.129.201.248:       -    ServerName      = SQL-01
+[+] 10.129.201.248:       -    InstanceName    = MSSQLSERVER
+[+] 10.129.201.248:       -    IsClustered     = No
+[+] 10.129.201.248:       -    Version         = 15.0.2000.5
+[+] 10.129.201.248:       -    tcp             = 1433
+[+] 10.129.201.248:       -    np              = \\SQL-01\pipe\sql\query
+[*] 10.129.201.248:       - Scanned 1 of 1 hosts (100% complete)
+[*] Auxiliary module execution completed
+#+end_src
+
+**** connecting w mssqlclient.py
+- guess / gain access to creds
+- uses T-SQL
+#+begin_src bash
+biscuitrescue@htb[/htb]$ python3 mssqlclient.py Administrator@10.129.201.248 -windows-auth
+
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+Password:
+[*] Encryption required, switching to TLS
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: master
+[*] ENVCHANGE(LANGUAGE): Old Value: , New Value: us_english
+[*] ENVCHANGE(PACKETSIZE): Old Value: 4096, New Value: 16192
+[*] INFO(SQL-01): Line 1: Changed database context to 'master'.
+[*] INFO(SQL-01): Line 1: Changed language setting to us_english.
+[*] ACK: Result: 1 - Microsoft SQL Server (150 7208) 
+[!] Press help for extra shell commands
+
+SQL> select name from sys.databases
+
+name                                                                                                                               
+
+--------------------------------------------------------------------------------------
+
+master                                                                                                                             
+
+tempdb                                                                                                                             
+
+model                                                                                                                              
+
+msdb                                                                                                                               
+
+Transactions
+#+end_src
