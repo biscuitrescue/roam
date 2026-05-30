@@ -1,0 +1,177 @@
+:PROPERTIES:
+:ID:       47aaa31c-f8cf-4211-997a-cbcee76b2bad
+:END:
+#+title: info gathering
+#+OPTIONS: toc:2
+
+* TOC :toc:
+- [[#whois][WHOIS]]
+- [[#dns][DNS]]
+  - [[#digging-dns][Digging DNS]]
+  - [[#subdomains][Subdomains]]
+  - [[#dns-zone-transfers][DNS Zone Transfers]]
+
+* WHOIS
+ - query & respoinse protocol designed to access DB that stores info about registered internet resources
+ - primarily associated w domain names.
+ - provides details about IP addr blocks & anon systems
+ - [[https://whoisfreaks.com/][WhoisFreaks]] -> reveal changes in ownership, contact info, technical details over time
+
+* DNS
+- [[file:20260516161056-footprinting.org::*DNS][DNS]]
+
+** Digging DNS
+*** Hosts file
+- simple txt file used to map hostnames to IP addr
+- provides manual mehtod of Domain Name Resolution which bypasses DNS.
+- =hosts= -> direct local overrides translation of domain names to IP addrs.
+- useful for devm troubleshooting, blocking websites.
+
+- Win -> ~C:\Windows\System32\drivers\etc\hosts~
+
+*** Zones
+- distinct part of domain namespace.
+- virtual container for set of domain names.
+- domain & all subdomains belong to same DNS Zone
+
+*** DIG
+- =domain information groper=
+- =@= -> specifies specific name server to query
+- =+trace= -> shows full path of DNS Resolution
+- =-x <ip>= -> reverse lookup on IP to find associated hostname
+- =+short domain.com= -> short concise answer
+- =+noall +answer= -> only answer section of query output
+- =ANY= -> all avl DNS records for domain. (many DNS servers ignore =ANY= queries to reduce load and prevent abuse)
+
+*** Groping DNS
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig google.com
+
+; <<>> DiG 9.18.24-0ubuntu0.22.04.1-Ubuntu <<>> google.com
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 16449
+;; flags: qr rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;google.com.                    IN      A
+
+;; ANSWER SECTION:
+google.com.             0       IN      A       142.251.47.142
+
+;; Query time: 0 msec
+;; SERVER: 172.23.176.1#53(172.23.176.1) (UDP)
+;; WHEN: Thu Jun 13 10:45:58 SAST 2024
+;; MSG SIZE  rcvd: 54
+#+end_src
+
+1. Header 
+   * ~;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 16449~
+     - indicates type of query(=QUERY=), successful status (=NOERROR=), unique id (=16449=)
+   * ~;; flags: qr rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0~
+     - desc flags in DNS header
+     - =qr= -> query response flag (indicates this is response)
+     - =rd= -> recursion desired flag (recursion was requested)
+     - =ad= -> authentic data flag (resolver considers data authentic)
+     - remaining numbers indicate number of entries in each section of DNS response
+   * ~;; WARNING: recursion requested but not available~
+     - server doesn't support recursion
+       
+2. Question Section
+   * ~;google.com. IN A~
+     - ques: what is IPv4 addr (=A=)
+
+3. Answer Section
+   * ~google.com.             0       IN      A       142.251.47.142~
+     - answer to query.
+     - '=0=' -> =TTL= (How long result can be cached before being refreshed)
+
+4. Footer
+   * ~;; Query time: 0 msec~
+     - time taken for query to be processed & response to be rcvd
+   * ~;; SERVER: 172.23.176.1#53(172.23.176.1) (UDP)~
+     - IDs DNS server which provided answer & protocol used (UDP)
+   * ~;; WHEN: Thu Jun 13 10:45:58 SAST 2024~
+     - Timestamp of when query was made
+   * ~;; MSG SIZE  rcvd: 54~
+     - size of DNS msg rcvd (54B)
+
+5. Opt (*Pseudosection*)
+   * extension mechanisms (EDNS) -> allows for larger msg sizes, DNSSEC support
+
+** Subdomains
+- extensions of main domain, created to organise & separate different section sor functionalitiesof website
+
+*** Importance
+**** Development & Staging Environment
+- used by companies to test new features/updates before deploying them to main site
+- relaxed security measures -> contain vulns/expose sens info
+**** Hidden Login Portals
+- subdomains might host admin panels || other login pages not meant to be publicly accessible.
+**** Legacy application
+- Older & forgotten apps might reside on subdomains -> outdated software w known vulns
+**** sensitive info
+- subdomains can inadvertently expose confidential docs, internal data, config files
+
+*** Subdomain Enumeration
+- from DNS perspective, subdomains repr by =A= or =AAAA= records -> map subdomain name to corresponding IP addr
+- =CNAME= records might be used to create aliases for subdomains -> pointing them to other domains/subdomains
+
+***** Active Subdomain Enum
+directly interacting w target domain's DNS to uncover subdomains.
+1. [[file:20260516161056-footprinting.org::*DIG - AXFR Zone Transfer][DNS Zone Transfer]]
+2. [[*Subdomain Brute-force enum][Subdomain Brute-Force Enum]] -> testing list of potential subdomains against target
+   - =dnsenum=, =ffuf=, =gobuster=
+
+***** Passive Subdomain Enum
+1. =Certificate Transparency Logs=
+   - public repos of SSL/TLS certs
+   - certs can include list of associated subdomains in *Subject Alternative Name* (SAN) field
+2. =search engines=
+   - use search operators (=site:=)
+
+**** Subdomain Brute-Force Enum
+- leverages pre-defined lists of potential subdomain names.
+
+- Breakdown:
+  1) *Wordlist Selection*: selecting wordlist containing potential subdomain names:
+     - =General Purpose=: contain broad range of common subdomain names
+       # useful when we dont know target's naming convention
+
+     - =Targeted=: focus on specific industries, tech, naming patterns relevant to target.
+       # more efficient -> reduce chances of false positives
+
+     - =Custom=: create own wordlist based on specific keywords, patterns intel from other sources.
+
+  2) *Iteration & Querying*: script/tool iterates through wordlist, appending each word/phrase to main domain.
+
+  3) *DNS Lookup*: DNS query performed for each potential subdomain to check if it resolves to an IP. 
+     # typically done using A || AAAA
+
+  4) *Filtering & Validation*
+
+***** DNSEnum
+
+#+begin_src bash
+dnsenum --enum inlanefreight.com -f /usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt -r
+#+end_src
+
+****** DNS Record Enum
+- can retrieve various DNS records (A, AAAA, NS, MX, TXT)
+****** Zone Transfer Attempts
+- automatically attempts zone transfers from discovered name servers.
+- most servers configured to prevent unauth zone transfers
+- successful attempt -> trove of DNS info
+****** Subdomain Brute-Forcing
+- Brute-forcing using wordlist
+- systematically testing potential subdomain names against target domain 
+****** Google Scraping
+- can scrape google search results -> find additional subdomains not listed in DNS records directly
+****** Reverse Lookup
+- can perform reverse DNS lookups to ID domains associated w given IP
+****** WHOIS Lookups
+
+** DNS Zone Transfers
+- [[file:20260516161056-footprinting.org::*DIG - AXFR Zone Transfer][DNS Zone Transfer]]
+- less invasive, more efficient method than Brute-forcing

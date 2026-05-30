@@ -572,7 +572,29 @@ if we have access to the system via SSH and want to read files from another fold
 - stores and outputs additional info about services associated with domain.
 - DNS query can also be used to determine which computer serves as the EMAIL server for domain in question or what domain's name servers are called.
 
-*** Types of DNS Servers
+*** How DNS Works
+1. =computer asks (DNS Query)=
+   - computer checks its memory to see if it remembers IP addr from prev visit.
+   - if not, it reaches out to DNS resolver (usually provided by ISP)
+2. =Resolver checks its maps (Recursive lookup)=
+   - resolver has cache
+   - if no IP addr here, journey through DNS hierarchy starts.
+   - begins by asking root name server.
+   - librarian of internet.
+3. =Root Name Server Points the way=
+   - root server doesn't know exact addr, but knows who does (*TLD Name server*)
+   - points resolver in right direction
+4. =TLD NAME SERVER Narrows it down=
+   - TLD NS -> regional map
+   - knows which Authoritative NS is responsible for specific domain
+5. =Authoritative Name Server Delivers Address=
+   - Authoritative name server = final stop.
+   - street addr of website
+   - holds correct IP & sends back to resolver
+6. =Computer Connects=
+   - now that computer knows IP, can connect directly to web server hosting
+
+*** types of DNS Servers
 1. Root server: 
    - responsible for top-lvl domains (=TLD=)
      * only required if name server doesn't respond.
