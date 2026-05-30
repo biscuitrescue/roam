@@ -10,6 +10,9 @@
   - [[#digging-dns][Digging DNS]]
   - [[#subdomains][Subdomains]]
   - [[#dns-zone-transfers][DNS Zone Transfers]]
+  - [[#virtual-hosts][Virtual Hosts]]
+  - [[#certificate-transparency-logs][Certificate Transparency Logs]]
+- [[#fingerprinting][Fingerprinting]]
 
 * WHOIS
  - query & respoinse protocol designed to access DB that stores info about registered internet resources
@@ -193,3 +196,127 @@ dnsenum --enum inlanefreight.com -f /usr/share/seclists/Discovery/DNS/subdomains
 
 **** exploiting
 ~dig axfr @nsztm1.digi.ninja zonetransfer.me~
+
+** TODO Virtual Hosts
+- once DNS directs traffic to correct server, web server config becomes crucial in determining how incoming reqs are handled.
+- Web servers are designed to host multiple websites/application on single servers
+- achieved through *vhosting*
+
+*** Diff b/w VHost & Subdomains
+
+|----------------------------------------------+---------------------------------------------|
+| Subdomain                                    | VHOSTS                                      |
+|                                              |                                             |
+|----------------------------------------------+---------------------------------------------|
+| extension of main domain name                | config w/in webserver which allow multiple  |
+|                                              | websites/apps on same shared IP4            |
+|                                              |                                             |
+| have their own DNS records pointing to       | can be associated with TLDs or subdomains   |
+| either same IP as main domain or different   |                                             |
+|                                              |                                             |
+| used to organise diff sects/servs of website | each VHost can have separate config.        |
+|                                              | gives precise control over how reqs handled |
+|                                              |                                             |
+|----------------------------------------------+---------------------------------------------|
+
+*** Working of VHosts
+- ability of web servs to distinguish b/w multiple websites/apps sharing same IP.
+- leverages =HTTP Host= header -> included in every =HTTP= request sent by browser.
+- if vhost doesn't have dns record, can still access by modifying hosts file
+
+**** VHOST fuzzing
+- tehcnique to discover public & non-public =subdomains= and =VHosts= by testing various hostnames against known IP addr.
+  
+*** Server VHOST Lookup
+1. *Browser Requests Website*: initiates HTTP request to webserver associated w domain IP
+2. *Host Header Reveals Domain*: browser includes domain name in req's =host= header. Acts as label to inform webserver which website is being requested.
+3. *Web Server Determines VHOST*: server rcvs req, examines =host= header, constults VHOST config to find matching entry for domain name
+4. *Serving Right Content*: webserver retrieves corresponding files & resources associated w website from document root & sends back to browser as HTTP response
+# host header -> switch, enables webserver to dynamically determine which website to serve based on domain name requested by browser
+
+*** Types off VHosting
+1. *Name Based*
+   - relies solely on =HTTP Host header= to distinguish b/w websites.
+   - most common & flexible method.
+   - doesn't require multiple IPs
+   - cost-effective, easy to setup, supports most modern webservers
+   - requires webserver to support name-based vhosting, can have limitations w vertain protocols (SSL/TLS)
+2. *IP Based*
+   - assigns unique IP addr to each website hosted on server
+   - server determines which website to serve based on IP addr to which request was sent
+3. *Port Based*
+   - diff websites w diff ports on same IP.
+
+*** VHost Discovery Tools
+
+**** gobuster
+- used for dir/file brute-dorcing
+- excels at VHost discovery
+- systemtically sends HTTP requests w diff =Host= headers to target IP.
+- ~gobuster vhost -u http://<target_ip>:<port> -w <wordlist> --append-domain~
+  - ~-t~ -> increase number of threads
+  - ~-k~ -> ignore SSL/TLS cert err
+  - ~-o~ -> save o/p to file 
+# always use regex to search for expr (not plain grep)
+
+**** ffuf
+- faster, go impl
+- raw keyword replacer
+- ~ffuf -w <wordlist> -u http://<target>:<port> -H "Host: FUZZ.<target_domain>" -fs 4242~
+
+** Certificate Transparency Logs
+=digital certificate=: file which verifies website's ID & allows for secure & encrypted comms
+
+- =Certificate Transparency= (=CT=) Logs:
+  - append only ledgers -> record issuance of SSL/TLS certs.
+  - *Global registry of certs*
+
+- whenever a certificate authority issues new cert, it must submit it to multiple CT logs.
+
+- Independent orgs maintain & open for anyone to inspect.
+
+*** Purpose
+- *Early detection of Rogue Certs*
+- *Accountability for Certificate Aauthorities*
+- *Strengthening Web PKI (=Public Key Infra=)*
+  
+*** How CT Logs Work
+1. *Cert Issuance*
+   - Website owner req =SSL/TLS= cert from CA
+   - CA performs due dilligence to verify owner's ID & domain ownership.
+   - after verification, CA issues =pre-certificate=
+2. *Log Submission*
+   - CA submits =pre-certificate= to multiple CT logs.
+   - each log operated by diff org.
+   - logs -> append only
+3. *Signed Cert Timestamp (SCT)*
+   - after recieving =pre-certificate= to multiple CT logs, each CT log generates =Signed Certificate Timestamp=.
+   - =SCT= -> cryptographic proof that the cert was submitted to log at specific time.
+   - =SCT= included in final certicate issued to website owner.
+4. *Browser Verification*
+   - user's browser checks cert's =SCT= on connecting to website
+   - =SCTs= verified against public CT logs to confirm the cert was issued & logged correctly
+   - if =SCT= valid, browser est. secure connection. else -> warning display
+5. *Monitoring & Auditing*
+   - CT logs continously monitored by various entities:
+     - security researchers, website owners, browser vendors.
+   - look for anomalies, sus certs
+
+*** Merkle Tree Structure
+- ensure CT logs' integrity & tamper-proof nature.
+- each leaf node represents cert
+- each non-leaf node represents hash of child nodes.
+- merkle root = single hash representing entire log.
+
+*** CT Logs & Web Recon
+- provide definitive record of certs issued for domain & subdomains
+- unveil subdomains associated w old/expired certs -> may host outdated s/w || configs -> potentially vuln to exploitation
+
+*** Searching CT Logs
+1. [[https://crt.sh/][crt.sh]]
+2. [[https://search.censys.io/][censys]]
+
+**** crt.sh
+- ~curl -s "https://crt.sh/?q=face.com&output=json" | jq -r '/[] | select(.name_value | contains("dev")) | .name_value' | sort -u~
+
+* Fingerprinting
