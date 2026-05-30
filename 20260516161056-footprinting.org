@@ -781,7 +781,7 @@ ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
 #+end_src
 
 **** DIG - AXFR Zone Transfer
-- *Zone Transfer* -> transfer of zones to another server in DNS. involves mere transfer of files or records and detection of discrepancies in data sets of servers involved
+- [[file:20260530145602-info_gathering.org::*Zone Transfer][Zone Transfer]] -> transfer of zones to another server in DNS. involves mere transfer of files or records and detection of discrepancies in data sets of servers involved
   - happens over =TCP/53=.
   - Procedure abbr. -> *Async Full Transfer Zone*
 

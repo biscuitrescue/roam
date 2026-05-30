@@ -175,3 +175,21 @@ dnsenum --enum inlanefreight.com -f /usr/share/seclists/Discovery/DNS/subdomains
 ** DNS Zone Transfers
 - [[file:20260516161056-footprinting.org::*DIG - AXFR Zone Transfer][DNS Zone Transfer]]
 - less invasive, more efficient method than Brute-forcing
+- designed for replicating DNS records b/w name servers
+
+*** Zone Transfer
+- wholesale copy of all DNS records w/in zone (domain & subdomains) from 1 NS to another
+- essential for maintaining consistency & redundancy across DNS servers
+- 
+
+*** Zone Transfer Vulnerability
+- info from unauthorised zone transfer:
+  - *subdomains*: Complete list of subdomains
+  - *IP Addrs*: IPs associated w each subdomain
+  - *Name Server Records*
+
+**** Remediation
+- modern DNS servers configured to allow zone trasnfers only to trusted secondary servers.
+
+**** exploiting
+~dig axfr @nsztm1.digi.ninja zonetransfer.me~
