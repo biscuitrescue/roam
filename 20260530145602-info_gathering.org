@@ -18,6 +18,14 @@
   - [[#robotstxt][Robots.txt]]
   - [[#well-known-uris][Well Known URIs]]
   - [[#creepy-crawlies][Creepy Crawlies]]
+- [[#search-engines][Search Engines]]
+  - [[#search-operators][Search Operators]]
+  - [[#google-dorking][Google Dorking]]
+- [[#web-archives][Web Archives]]
+- [[#automating-recon][Automating Recon]]
+  - [[#why][WHY]]
+  - [[#recon-frameworks][Recon Frameworks]]
+  - [[#finalrecon][FinalRecon]]
 
 * WHOIS
  - query & respoinse protocol designed to access DB that stores info about registered internet resources
@@ -465,7 +473,7 @@ Sitemap: https://www.example.com/sitemap.xml
 3. supported scopes & response types
 4. Algo details
 
-** Creepy Crawlies
+** TODO Creepy Crawlies
 
 *** Burp Suite Spider
 - web app testing platform
@@ -490,3 +498,172 @@ biscuitrescue@htb[/htb]$ unzip ReconSpider.zip
 *** Apache Nutch (Scalable Crawler):
 - highly extensible open source in java
 - requires mmore technical expertise to setup & config
+
+* Search Engines
+** Search Operators
+- =site:= -> limits results to specific domain/website
+- =inurl:= -> finds pages w specific term in URL
+- =filetype:= -> searches for files of particular type
+- =intitle:= -> pages w specific term in title
+- =intext:= || =inbody:= -> searches for term w/in body text of pages
+- =cache:= -> displays cached version of webpage if avl
+- =link:= -> finds page which links to specific webpage
+- =related:= -> finds page related to specific webpage
+- =info:= -> summary of info about webpage
+- =define:= -> definitions of word/phrase
+- =numrange:= -> numbers w/in specific range
+- =allintext:= -> pages containing all specified words in body
+- =allinurl:= -> pages containing all specified in url
+- =allintitle:= -> pages containing all specified in title
+- =AND= -> narrows result by requiring all terms to be present
+- =OR= -> Broadens results, includes pages w any of the terms
+- =NOT= -> exclude
+- =*= (wildcard) -> any char of word
+- =..= -> results w/in specified numerical range.
+- =" "= -> exact phrase
+- =-= -> excludes term
+
+** Google Dorking
+leverage power of SEOs to uncover sens info, sec vulns, hidden content on website.
+
+1) Finding Login Pages:
+   - ~site:example.com inurl:login~
+   - ~site:example.com (inurl:login OR inurl:admin)~
+
+2) Identifying Exposed Files:
+   - ~site:example.com filetype:pdf~
+   - ~site:example.com (filetype:xls OR filetype:docx)~
+
+3) Uncovering Configuration Files:
+   - ~site:example.com inurl:config.php~
+   - ~site:example.com (ext:conf OR ext:cnf)~
+   # (searches for extensions commonly used for configuration files)
+
+4) Locating Database Backups:
+    ~site:example.com inurl:backup~
+    ~site:example.com filetype:sql~
+
+* Web Archives
+
+* Automating Recon
+
+** WHY
+1. Efficiency
+2. Scalability
+3. Consistency
+4. Comprehensive Coverage
+5. Integration
+   
+** Recon Frameworks
+1. *FinalRecon* 
+   - SSL certificate checking
+   - Whois information gathering
+   - header analysis
+   - crawling
+
+2. *Recon-ng*
+   - modular structure
+   - DNS enumeration
+   - subdomain discovery
+   - port scanning
+   - web crawling
+   - exploit known vulnerabilities.
+
+3. *theHarvester* 
+   what:
+   - email address
+   - subdomains
+   - hosts
+   - employee names 
+   - open ports
+   - banners 
+     
+   from:
+   - search engines
+   - PGP key servers
+   - SHODAN database
+     
+4. *SpiderFoot*
+   - integrates with data sources to collect information about a target
+   - IP addresses, domain names, email addresses, and social media profiles. 
+   - DNS lookups, web crawling, port scanning etc
+     
+5. *OSINT Framework*
+   - open-source intelligence gathering 
+   - social media, search engines, public records, and more.
+
+** FinalRecon
+- header info
+- whois lookup
+- ssl cert info
+- crawler
+- dns enum
+- subdomain enum
+- dir enum
+- wayback machine
+
+[[https://github.com/thewhiteh4t/FinalRecon.git][GitHub]]
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ ./finalrecon.py --headers --whois --url http://inlanefreight.com
+
+ ______  __   __   __   ______   __
+/\  ___\/\ \ /\ "-.\ \ /\  __ \ /\ \
+\ \  __\\ \ \\ \ \-.  \\ \  __ \\ \ \____
+ \ \_\   \ \_\\ \_\\"\_\\ \_\ \_\\ \_____\
+  \/_/    \/_/ \/_/ \/_/ \/_/\/_/ \/_____/
+ ______   ______   ______   ______   __   __
+/\  == \ /\  ___\ /\  ___\ /\  __ \ /\ "-.\ \
+\ \  __< \ \  __\ \ \ \____\ \ \/\ \\ \ \-.  \
+ \ \_\ \_\\ \_____\\ \_____\\ \_____\\ \_\\"\_\
+  \/_/ /_/ \/_____/ \/_____/ \/_____/ \/_/ \/_/
+
+[>] Created By   : thewhiteh4t
+ |---> Twitter   : https://twitter.com/thewhiteh4t
+ |---> Community : https://twc1rcle.com/
+[>] Version      : 1.1.6
+
+[+] Target : http://inlanefreight.com
+
+[+] IP Address : 134.209.24.248
+
+[!] Headers :
+
+Date : Tue, 11 Jun 2024 10:08:00 GMT
+Server : Apache/2.4.41 (Ubuntu)
+Link : <https://www.inlanefreight.com/index.php/wp-json/>; rel="https://api.w.org/", <https://www.inlanefreight.com/index.php/wp-json/wp/v2/pages/7>; rel="alternate"; type="application/json", <https://www.inlanefreight.com/>; rel=shortlink
+Vary : Accept-Encoding
+Content-Encoding : gzip
+Content-Length : 5483
+Keep-Alive : timeout=5, max=100
+Connection : Keep-Alive
+Content-Type : text/html; charset=UTF-8
+
+[!] Whois Lookup : 
+
+   Domain Name: INLANEFREIGHT.COM
+   Registry Domain ID: 2420436757_DOMAIN_COM-VRSN
+   Registrar WHOIS Server: whois.registrar.amazon.com
+   Registrar URL: http://registrar.amazon.com
+   Updated Date: 2023-07-03T01:11:15Z
+   Creation Date: 2019-08-05T22:43:09Z
+   Registry Expiry Date: 2024-08-05T22:43:09Z
+   Registrar: Amazon Registrar, Inc.
+   Registrar IANA ID: 468
+   Registrar Abuse Contact Email: abuse@amazonaws.com
+   Registrar Abuse Contact Phone: +1.2024422253
+   Domain Status: clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited
+   Domain Status: clientTransferProhibited https://icann.org/epp#clientTransferProhibited
+   Domain Status: clientUpdateProhibited https://icann.org/epp#clientUpdateProhibited
+   Name Server: NS-1303.AWSDNS-34.ORG
+   Name Server: NS-1580.AWSDNS-05.CO.UK
+   Name Server: NS-161.AWSDNS-20.COM
+   Name Server: NS-671.AWSDNS-19.NET
+   DNSSEC: unsigned
+   URL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/
+
+
+[+] Completed in 0:00:00.257780
+
+[+] Exported : /home/htb-ac-643601/.local/share/finalrecon/dumps/fr_inlanefreight.com_11-06-2024_11:07:59
+#+end_src
