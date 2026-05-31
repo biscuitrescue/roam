@@ -16,9 +16,9 @@
   - [[#smb][SMB]]
   - [[#nfs][NFS]]
   - [[#dns][DNS]]
-  - [[#snmp][SNMP]]
+  - [[#smtp][SMTP]]
   - [[#imap--pop3][IMAP & POP3]]
-  - [[#snmp-1][SNMP]]
+  - [[#snmp][SNMP]]
   - [[#mysql][MYSQL]]
   - [[#mssql][MSSQL]]
   - [[#oracle-tns][ORACLE TNS]]
@@ -913,7 +913,7 @@ ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
 done.
 #+end_src
 
-** SNMP
+** SMTP
 
 - [[https://serversmtp.com/smtp-error/][SMTP response codes]]
 

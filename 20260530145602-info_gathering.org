@@ -13,6 +13,7 @@
   - [[#virtual-hosts][Virtual Hosts]]
   - [[#certificate-transparency-logs][Certificate Transparency Logs]]
 - [[#fingerprinting][Fingerprinting]]
+  - [[#fingerprinting-techniques][Fingerprinting Techniques]]
 
 * WHOIS
  - query & respoinse protocol designed to access DB that stores info about registered internet resources
@@ -320,3 +321,28 @@ dnsenum --enum inlanefreight.com -f /usr/share/seclists/Discovery/DNS/subdomains
 - ~curl -s "https://crt.sh/?q=face.com&output=json" | jq -r '/[] | select(.name_value | contains("dev")) | .name_value' | sort -u~
 
 * Fingerprinting
+- extracting technical details about tech powering website/webapp
+- digital signatures of web servers, OS, software components can reveal critical info about target's infra & potential security weakness.
+- enables:
+  1. *Targeted attacks*: tells specific technologies in use
+  2. *Identifying Misconfigs*: exposes misconfigured/outdated software, default settings
+  3. *Prioritising Targets*: Id'ing systems more likely to be vuln/hold valuable info
+  4. *Building comprehensive profile*: combining fingerprint w other recon findings -> holistic view of target's infra.
+
+** Fingerprinting Techniques
+- *Banner Grabbing*
+- *analysing HTTP Headers*
+- *Probing for specific responses*
+- *analysing page content*
+
+*** Banner Grabbing
+- ~curl -I <domain>~ (--head)
+  - includes server banner
+
+**** Wafw00f
+- to detect presence of WAF
+
+**** Nikto
+- open-source web server scanner
+- vuln assessment tool
+- ~nikto -h inlanefreight.com -Tuning b~
