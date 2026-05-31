@@ -17,6 +17,7 @@
 - [[#crawling][Crawling]]
   - [[#robotstxt][Robots.txt]]
   - [[#well-known-uris][Well Known URIs]]
+  - [[#creepy-crawlies][Creepy Crawlies]]
 
 * WHOIS
  - query & respoinse protocol designed to access DB that stores info about registered internet resources
@@ -463,3 +464,29 @@ Sitemap: https://www.example.com/sitemap.xml
    + details cryptographic keys used by server.
 3. supported scopes & response types
 4. Algo details
+
+** Creepy Crawlies
+
+*** Burp Suite Spider
+- web app testing platform
+- maps out webapps
+- ID hidden content
+- uncover potential vuln
+
+*** OWASP ZAp (Zed Attack Proxy)
+- free open-source web app security scanner
+- automated & manual modes
+- spider component to crawl web
+
+*** Scrapy (Python Framework)
+- versatile, scalable framework for building custom crawlers
+
+**** ReconSpider
+#+begin_src bash
+biscuitrescue@htb[/htb]$ wget -O ReconSpider.zip https://academy.hackthebox.com/storage/modules/144/ReconSpider.v1.2.zip
+biscuitrescue@htb[/htb]$ unzip ReconSpider.zip
+#+end_src>
+
+*** Apache Nutch (Scalable Crawler):
+- highly extensible open source in java
+- requires mmore technical expertise to setup & config
