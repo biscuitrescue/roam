@@ -22,6 +22,8 @@
   - [[#search-operators][Search Operators]]
   - [[#google-dorking][Google Dorking]]
 - [[#web-archives][Web Archives]]
+  - [[#how][HOW]]
+  - [[#why-it-matters-for-web-recon][Why it Matters for Web Recon]]
 - [[#automating-recon][Automating Recon]]
   - [[#why][WHY]]
   - [[#recon-frameworks][Recon Frameworks]]
@@ -544,6 +546,38 @@ leverage power of SEOs to uncover sens info, sec vulns, hidden content on websit
     ~site:example.com filetype:sql~
 
 * Web Archives
+- [[https://web.archive.org/][Wayback Machine]]
+- digital archive of WWW, other information on the Internet
+- *go back in time*, view snapshots of websites as they appeared at various points in their history
+- snapshots = captures = archives
+  - provide glimpse into the past versions of a website, including its design, content, and functionality.
+
+** HOW
+- ops by using web crawlers to capture snapshots of websites at regular intervals automatically.
+- crawlers nav through web, follow links, index pages
+- wayback machine stores entire content of pages
+
+-> crawling -> archiving -> accessing
+
+1. =Crawling=
+   - automated web crawlers -> browse internet systematically
+   - follow links page to page
+   - download copies of webpages they encounter.
+2. =Archiving=
+   - downloaded webpages, along w associated resources (img, stylesheets, scripts) stored in *Wayback Machine archive*.
+   - each captured page linked to specific datetime
+   - archiving happens at regular intervals depending on website popularity, frequency of updates
+3. =Accessing=
+   - users can access through Wayback Machine Interface
+   - enter website URL & datetime
+   - allows to browse individual pages
+   - provides tools to search specific terms w/in archived content or download entire Rchived website for offline analysis
+
+** Why it Matters for Web Recon
+1. *Uncovering Hidden Assets & Vulnerabilities*
+2. *Tracking Changes & Identifying Patterns*
+3. *Gathering Intel*
+4. *Stealthy Recon*
 
 * Automating Recon
 
