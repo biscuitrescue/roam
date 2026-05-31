@@ -14,6 +14,9 @@
   - [[#certificate-transparency-logs][Certificate Transparency Logs]]
 - [[#fingerprinting][Fingerprinting]]
   - [[#fingerprinting-techniques][Fingerprinting Techniques]]
+- [[#crawling][Crawling]]
+  - [[#robotstxt][Robots.txt]]
+  - [[#well-known-uris][Well Known URIs]]
 
 * WHOIS
  - query & respoinse protocol designed to access DB that stores info about registered internet resources
@@ -346,3 +349,117 @@ dnsenum --enum inlanefreight.com -f /usr/share/seclists/Discovery/DNS/subdomains
 - open-source web server scanner
 - vuln assessment tool
 - ~nikto -h inlanefreight.com -Tuning b~
+
+* Crawling
+- aka =spidering=
+- automated process of systematically browsing WWW
+
+*** Working
+- starts w seed URL -> init page to crawl
+
+*** Types
+1. BFS: broad overview of website struct & content
+2. DFS: specific content/reaching deep into website's struct
+
+*** Extracting Valuable info
+- *Links (Internal & External)*
+  - crawlers collect links. map out website struct, discover hidden pages, ID relationships w external resources.
+- *Comments*
+  - oversharing in comment sections of social media, forums, blogs
+- *metadata*
+  - =data about data=
+  - includes info -> page titles, descr, keywords, author names, dates
+- *sens files*
+  - backup, config, logs, API keys
+
+** Robots.txt
+- etiquette guide for bots -> outlines which areas of website allowed to access & which are off limits
+- text file placed in root dir of website.
+- dheres to *Robot Exclusion Standard*, guidelines for how crawlers should behave when visting site they can & can't crawl
+- target specific user agents -> identifiers for different types of bots
+
+*** Struct
+1. *User Agent*
+   - specifies which crawler the rule applies to.
+   - wildcards allowed
+   - can be specific (=Googlebot= || =Bingbot=)
+2. *Directives*
+   - provide specific instructions to Id'd user agent
+
+*** Why it is Followed
+not scrictly enforceable, but most legit web crawlers & search engines will respect directives
+
+- =Avoiding Overburdening Servers=
+  - limit crawler access to certain areas.
+- =Protecting Sensitive Information=
+  - shield pvt/confidential info from being indexed by search engines
+- =Legal & Ethical Compliance=
+  - in some cases, ignoring ~robot.txt~ -> violation of website's ToS or even legal issue (especially if copyrighted material involved)
+
+*** Robots.txt in web recon
+- =Uncovering Hidden Dirs=
+  - disallowed paths -> files owner wants to keep out of reach from Search engine crawlers
+- =Mapping Web Struct=
+  - create map of website structure by analysing (dis)allowed paths
+- =Detecting Crawler Traps=
+  - honeypots to lure malicious bots
+
+*** Robots.txt
+#+begin_src txt
+User-agent: *
+Disallow: /admin/
+Disallow: /private/
+Allow: /public/
+
+User-agent: Googlebot
+Crawl-delay: 10
+
+Sitemap: https://www.example.com/sitemap.xml
+#+end_src
+
+** Well Known URIs
+- =.well-known= std
+- serves as standardised dir w/in website's root domain
+- location -> ~/.well-known/~ on webserver
+  - centralises website's critical metadata -> config, info(srv, protocols, security mechanisms)
+- simplifies discovery & access process by est. consistent location for data.
+
+- *Internet Assigned Numbers Authority* (=IANA=) maintains [[https://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml][Registry]] of =.well-known= URIs
+
+*** Examples
+- =security.txt= -> contact info for security researchers (ref: RFC 9116)
+- =/.well-known/change-password= -> standard URL for directing users to pass change page ([[https://w3c.github.io/webappsec-change-password-url/#the-change-password-well-known-uri][ref]])
+- =openid-configuration= -> config details for OpenID Connect (ID layer on top of OAuth 2.0) ([[http://openid.net/specs/openid-connect-discovery-1_0.html][ref]])
+- =assetlinks.json= -> verifying ownership of digital assets ([[https://github.com/google/digitalassetlinks/blob/master/well-known/specification.md][ref]])
+- =mta-sts.txt= -> policy for *SMTP MTA Strict Transport Security* (ref: RFC 8461)
+
+*** Web Recon
+- discover endpoints
+
+**** openid-configuration
+- OpenID Connect Discovery Protocol (ID layer built on top of OAuth 2.0)
+- returns json doc w metadata about provider's endpoints
+#+begin_src json
+{
+  "issuer": "https://example.com",
+  "authorization_endpoint": "https://example.com/oauth2/authorize",
+  "token_endpoint": "https://example.com/oauth2/token",
+  "userinfo_endpoint": "https://example.com/oauth2/userinfo",
+  "jwks_uri": "https://example.com/oauth2/jwks",
+  "response_types_supported": ["code", "token", "id_token"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "scopes_supported": ["openid", "profile", "email"]
+}
+#+end_src
+
+***** Info obtained:
+1. Endpoint discovery:
+   + Authorisation Endpoint
+   + Token Endpoint
+   + Userinfo Endpoint
+2. JWKs URI
+   + reveals =JSON Web Key Set=
+   + details cryptographic keys used by server.
+3. supported scopes & response types
+4. Algo details
