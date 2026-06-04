@@ -10,10 +10,36 @@
 - [[id:257565c0-e451-43e7-bbf7-ef11c5baad01][shells payloads]]
 - [[id:fa631099-7451-4086-beb8-3d67a35a9ac5][footprinting]]
 - [[id:47aaa31c-f8cf-4211-997a-cbcee76b2bad][info gathering]]
+- [[id:95f92876-30b5-486d-91a9-33ab28ed9357][password attacks]]
 
 #+begin_quote
 fileless attacks run the payload directly in memory or leverage legitimate system tools to run malicious code without having to drop executable files on the disk
 #+end_quote
+
+* Prep
+** Project Struct
+#+begin_src bash
+Projects/
+└── Acme Company
+    ├── EPT
+    │   ├── evidence
+    │   │   ├── credentials
+    │   │   ├── data
+    │   │   └── screenshots
+    │   ├── logs
+    │   ├── scans
+    │   ├── scope
+    │   └── tools
+    └── IPT
+        ├── evidence
+        │   ├── credentials
+        │   ├── data
+        │   └── screenshots
+        ├── logs
+        ├── scans
+        ├── scope
+        └── tools
+#+end_src
 
 * Extras
 - Certutil -> Decoding
