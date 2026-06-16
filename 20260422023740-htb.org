@@ -10,6 +10,7 @@
 - [[id:257565c0-e451-43e7-bbf7-ef11c5baad01][shells payloads]]
 - [[id:fa631099-7451-4086-beb8-3d67a35a9ac5][footprinting]]
 - [[id:47aaa31c-f8cf-4211-997a-cbcee76b2bad][info gathering]]
+- [[id:198a1577-9abc-4e40-bc2c-430a09178a8d][vulnerability assessment]]
 - [[id:95f92876-30b5-486d-91a9-33ab28ed9357][password attacks]]
 
 #+begin_quote

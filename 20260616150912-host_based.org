@@ -1,0 +1,1509 @@
+:PROPERTIES:
+:ID:       4f80eee2-bd88-4610-bd0c-a0f15e25c234
+:END:
+#+title: Host Based
+#+OPTIONS: toc:3 ^:{}
+* FTP
+- one of the oldest protocols.
+- runs on application layer of TCP/IP stack.
+- =Clear Text= protocol
+  
+** Upload / Download
+1. 2 channels opened
+2. client/server est connection -> =TCP 21=.
+3. client sends commands to server. server ret status codes.
+4. both comm participants can est data channel -> =TCP 20=. =20= exclusively for data transmission.
+5. protocol watches for errs.
+6. if connection broken during transmission, transport resumed after re-est contact.
+
+*** Active FTP
+- client est connection via =TCP 20=.
+- informs server which client-side port server can transmit its responses to.
+- if firewall protects client, server can't reply -> all external connections blocked.
+  
+*** Passive FTP
+- server announces port through which client can est data channel
+- firewall doesnt block transfer as client init connection.
+
+*** Commands & Status codes
+- [[https://web.archive.org/web/20230326204635/https://www.smartfile.com/blog/the-ultimate-ftp-commands-list/][commands]]
+- [[https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes][status codes]]
+
+* TFTP
+- simpler
+- doesn't provide user auth.
+- =UDP= -> unreliable, UDP assisted application recovery
+- sets limit on access -> r/w permissions of file in OS
+- leads to TFTP operating exclusively in dirs w files which have been shared w all users and can be read and written globally.
+
+** commands
+1. connect: sets remote host, optional::port
+2. get: transfer a file or set of files from remote host to local host
+3. put: transfers file/set of files from localhost to remote
+4. quit: exit tftp
+5. status: show the current status of tftp, including current transfer mode (ascii/bin), connection status, time-out val, etc
+6. verbose
+   
+** Download all avl files
+   #+begin_src bash
+wget -m --no-passive ftp://anonymous:anonymous@<ip>
+   #+end_src
+
+** footprinting service
+
+*** Nmap ftp scripts
+~--script-updatedb~
+~--script-trace~
+
+*** Openssl
+- if ftp server runs w TLS/SSL cert.
+- SSL -> allows us to recognise =username= & =email_address=
+  #+begin_src bash
+openssl s_client -connect <ip> -starttls ftp
+#+end_src
+
+* SMB
+- regulates access top files and entire dirs and other net Resources (printers, routers, interfaces)
+- backward compatible
+- uses =TCP= to establish connection. specs of TCP -> transport of data
+- SMB server -> arbitrary parts of local FS as shares.
+- hierarchy visible to client is partially independent of struct on server.
+- access rights by =ACLs=
+
+  
+** Samba
+- alternate impl of SMB server for Unix based
+- impls =CIFS= (dialect of SMB)
+  - allows samba to comm effectively w newer windows systems
+    
++ SMB cmds from samba to older NetBIOS system -> TCP (137, 138, 139)
++ CIFS -> TCP (445)
+
+** rpcclient
+- nmap doesnt provide much for smb.
+- allows to interact manually with SMB.
+- performs MS-RPC functions.
+  ~rpcclient -U "" <ip>~
+  
+*** commands
+**** srvinfo
+- server info
+**** enumdomains
+- enumerate all domains deployed in network
+**** querydominfo
+- provides domain, server and user info of deployed domains
+**** netshareenumall
+- enumerate all avl shares.
+**** netsharegetinfo <share>
+- provide info about specific share
+**** enumdomusers
+- enum all domain users.
+**** queryuser <RID>
+- Provide info about specific user
+
+*** brute forcing user RIDs
+***** bash script
+  #+begin_src bash
+biscuitrescue@htb[/htb]$ for i in $(seq 500 1100);do rpcclient -N -U "" 10.129.14.128 -c "queryuser 0x$(printf '%x\n' $i)" | grep "User Name\|user_rid\|group_rid" && echo "";done
+
+        User Name   :   sambauser
+        user_rid :      0x1f5
+        group_rid:      0x201
+        
+        User Name   :   mrb3n
+        user_rid :      0x3e8
+        group_rid:      0x201
+        
+        User Name   :   cry0l1t3
+        user_rid :      0x3e9
+        group_rid:      0x201
+  #+end_src
+***** Impacket -> samrdump.py
+- [[https://github.com/SecureAuthCorp/impacket/blob/master/examples/samrdump.py][url]]
+- usage: ~samrdump.py <ip>~
+**** alternatives
+1. [[https://github.com/ShawnDEvans/smbmap][SMBMap]]
+2. [[https://github.com/byt3bl33d3r/CrackMapExec][CrackMapExec]]
+3. [[https://github.com/cddmp/enum4linux-ng][enum4linux-ng]]
+** SMBMap
+#+begin_src bash
+biscuitrescue@htb[/htb]$ smbmap -H 10.129.14.128
+
+[+] Finding open SMB ports....
+[+] User SMB session established on 10.129.14.128...
+[+] IP: 10.129.14.128:445       Name: 10.129.14.128                                     
+        Disk                                                    Permissions     Comment
+        ----                                                    -----------     -------
+        print$                                                  NO ACCESS       Printer Drivers
+        home                                                    NO ACCESS       INFREIGHT Samba
+        dev                                                     NO ACCESS       DEVenv
+        notes                                                   NO ACCESS       CheckIT
+        IPC$                                                    NO ACCESS       IPC Service (DEVSM)
+#+end_src
+*** CrackMapExec
+#+begin_src bash
+biscuitrescue@htb[/htb]$ crackmapexec smb 10.129.14.128 --shares -u '' -p ''
+
+SMB         10.129.14.128   445    DEVSMB           [*] Windows 6.1 Build 0 (name:DEVSMB) (domain:) (signing:False) (SMBv1:False)
+SMB         10.129.14.128   445    DEVSMB           [+] \: 
+SMB         10.129.14.128   445    DEVSMB           [+] Enumerated shares
+SMB         10.129.14.128   445    DEVSMB           Share           Permissions     Remark
+SMB         10.129.14.128   445    DEVSMB           -----           -----------     ------
+SMB         10.129.14.128   445    DEVSMB           print$                          Printer Drivers
+SMB         10.129.14.128   445    DEVSMB           home                            INFREIGHT Samba
+SMB         10.129.14.128   445    DEVSMB           dev                             DEVenv
+SMB         10.129.14.128   445    DEVSMB           notes           READ,WRITE      CheckIT
+SMB         10.129.14.128   445    DEVSMB           IPC$                            IPC Service (DEVSM)
+#+end_src
+*** Enum4linux-ng
+#+begin_src bash
+biscuitrescue@htb[/htb]$ ./enum4linux-ng.py 10.129.14.128 -A
+
+ENUM4LINUX - next generation
+
+ ==========================
+|    Target Information    |
+ ==========================
+[*] Target ........... 10.129.14.128
+[*] Username ......... ''
+[*] Random Username .. 'juzgtcsu'
+[*] Password ......... ''
+[*] Timeout .......... 5 second(s)
+
+ =====================================
+|    Service Scan on 10.129.14.128    |
+ =====================================
+[*] Checking LDAP
+[-] Could not connect to LDAP on 389/tcp: connection refused
+[*] Checking LDAPS
+[-] Could not connect to LDAPS on 636/tcp: connection refused
+[*] Checking SMB
+[+] SMB is accessible on 445/tcp
+[*] Checking SMB over NetBIOS
+[+] SMB over NetBIOS is accessible on 139/tcp
+
+ =====================================================
+|    NetBIOS Names and Workgroup for 10.129.14.128    |
+ =====================================================
+[+] Got domain/workgroup name: DEVOPS
+[+] Full NetBIOS names information:
+- DEVSMB          <00> -         H <ACTIVE>  Workstation Service
+- DEVSMB          <03> -         H <ACTIVE>  Messenger Service
+- DEVSMB          <20> -         H <ACTIVE>  File Server Service
+- ..__MSBROWSE__. <01> - <GROUP> H <ACTIVE>  Master Browser
+- DEVOPS          <00> - <GROUP> H <ACTIVE>  Domain/Workgroup Name
+- DEVOPS          <1d> -         H <ACTIVE>  Master Browser
+- DEVOPS          <1e> - <GROUP> H <ACTIVE>  Browser Service Elections
+- MAC Address = 00-00-00-00-00-00
+
+ ==========================================
+|    SMB Dialect Check on 10.129.14.128    |
+ ==========================================
+[*] Trying on 445/tcp
+[+] Supported dialects and settings:
+SMB 1.0: false
+SMB 2.02: true
+SMB 2.1: true
+SMB 3.0: true
+SMB1 only: false
+Preferred dialect: SMB 3.0
+SMB signing required: false
+
+ ==========================================
+|    RPC Session Check on 10.129.14.128    |
+ ==========================================
+[*] Check for null session
+[+] Server allows session using username '', password ''
+[*] Check for random user session
+[+] Server allows session using username 'juzgtcsu', password ''
+[H] Rerunning enumeration with user 'juzgtcsu' might give more results
+
+ ====================================================
+|    Domain Information via RPC for 10.129.14.128    |
+ ====================================================
+[+] Domain: DEVOPS
+[+] SID: NULL SID
+[+] Host is part of a workgroup (not a domain)
+
+ ============================================================
+|    Domain Information via SMB session for 10.129.14.128    |
+ ============================================================
+[*] Enumerating via unauthenticated SMB session on 445/tcp
+[+] Found domain information via SMB
+NetBIOS computer name: DEVSMB
+NetBIOS domain name: ''
+DNS domain: ''
+FQDN: htb
+
+ ================================================
+|    OS Information via RPC for 10.129.14.128    |
+ ================================================
+[*] Enumerating via unauthenticated SMB session on 445/tcp
+[+] Found OS information via SMB
+[*] Enumerating via 'srvinfo'
+[+] Found OS information via 'srvinfo'
+[+] After merging OS information we have the following result:
+OS: Windows 7, Windows Server 2008 R2
+OS version: '6.1'
+OS release: ''
+OS build: '0'
+Native OS: not supported
+Native LAN manager: not supported
+Platform id: '500'
+Server type: '0x809a03'
+Server type string: Wk Sv PrQ Unx NT SNT DEVSM
+
+ ======================================
+|    Users via RPC on 10.129.14.128    |
+ ======================================
+[*] Enumerating users via 'querydispinfo'
+[+] Found 2 users via 'querydispinfo'
+[*] Enumerating users via 'enumdomusers'
+[+] Found 2 users via 'enumdomusers'
+[+] After merging user results we have 2 users total:
+'1000':
+  username: mrb3n
+  name: ''
+  acb: '0x00000010'
+  description: ''
+'1001':
+  username: cry0l1t3
+  name: cry0l1t3
+  acb: '0x00000014'
+  description: ''
+
+ =======================================
+|    Groups via RPC on 10.129.14.128    |
+ =======================================
+[*] Enumerating local groups
+[+] Found 0 group(s) via 'enumalsgroups domain'
+[*] Enumerating builtin groups
+[+] Found 0 group(s) via 'enumalsgroups builtin'
+[*] Enumerating domain groups
+[+] Found 0 group(s) via 'enumdomgroups'
+
+ =======================================
+|    Shares via RPC on 10.129.14.128    |
+ =======================================
+[*] Enumerating shares
+[+] Found 5 share(s):
+IPC$:
+  comment: IPC Service (DEVSM)
+  type: IPC
+dev:
+  comment: DEVenv
+  type: Disk
+home:
+  comment: INFREIGHT Samba
+  type: Disk
+notes:
+  comment: CheckIT
+  type: Disk
+print$:
+  comment: Printer Drivers
+  type: Disk
+[*] Testing share IPC$
+[-] Could not check share: STATUS_OBJECT_NAME_NOT_FOUND
+[*] Testing share dev
+[-] Share doesn't exist
+[*] Testing share home
+[+] Mapping: OK, Listing: OK
+[*] Testing share notes
+[+] Mapping: OK, Listing: OK
+[*] Testing share print$
+[+] Mapping: DENIED, Listing: N/A
+
+ ==========================================
+|    Policies via RPC for 10.129.14.128    |
+ ==========================================
+[*] Trying port 445/tcp
+[+] Found policy:
+domain_password_information:
+  pw_history_length: None
+  min_pw_length: 5
+  min_pw_age: none
+  max_pw_age: 49710 days 6 hours 21 minutes
+  pw_properties:
+  - DOMAIN_PASSWORD_COMPLEX: false
+  - DOMAIN_PASSWORD_NO_ANON_CHANGE: false
+  - DOMAIN_PASSWORD_NO_CLEAR_CHANGE: false
+  - DOMAIN_PASSWORD_LOCKOUT_ADMINS: false
+  - DOMAIN_PASSWORD_PASSWORD_STORE_CLEARTEXT: false
+  - DOMAIN_PASSWORD_REFUSE_PASSWORD_CHANGE: false
+domain_lockout_information:
+  lockout_observation_window: 30 minutes
+  lockout_duration: 30 minutes
+  lockout_threshold: None
+domain_logoff_information:
+  force_logoff_time: 49710 days 6 hours 21 minutes
+
+ ==========================================
+|    Printers via RPC for 10.129.14.128    |
+ ==========================================
+[+] No printers returned (this is not an error)
+
+Completed after 0.61 seconds
+#+end_src
+* NFS
+- ports =111=, =2049=
+- Network FS -> Sun microsystems
+- same purpose as SMB
+- purpose -> access S over network as if local
+- used between linux & unix.
+- cant comm directly w smb servers.
+- internet standard -> governs procedures in =distributed file system=
+
+  + NFSv3 -> authenticates client computer
+  + NFSv4 -> user must authenticate, only port 2049 used
+
+    |-------------+--------------------------------------------|
+    | Version     | Features                                   |
+    | v2          | entirely UDP                               |
+    | v3          | var file size, better err reporting        |
+    | v4          | - req kerberos, works through fireweall    |
+    |             | - no need for portmappers                  |
+    |             | - supports CLs                             |
+    |             | - applies state-based ops                  |
+    |             | - perrformance improvements, high security |
+    |             | - first version to have stateful protocol  |
+    |-------------+--------------------------------------------|
+
+- based on [[https://en.wikipedia.org/wiki/Sun_RPC][Open network Computing Remote Procedure Call]]
+- exposed on TCP & UDP =111=
+- uses [[https://en.wikipedia.org/wiki/External_Data_Representation][External data repr]] (=XDR=) for system-independent exchange of data.
+- no mechanism for auth(entication/orisation)
+- authentication -> shifted to to RPC protocol's options.
+- authorisation -> derived from avl FS info
+- server responsible for translating client user info into FS format & converting corresponding authorisation details into req UNIX syntax
+- most common auth via UNIX -> =UID/GID=, =group membership=
+
++ problem:
+  - client & server do not necessarily have same mappings of UID/GID to users and groups.
+** Default Config
+- =/etc/exports= -> contains table of physics FS on NFS server accessible by clients.
+** Enumeration
+~sudo nmap --script nfs* 10.129.14.128 -sV -p111,2049~
+- =rpcinfo= NSE -> list of all cur running RPC services, names & desc, ports under use.
+  
+*** Show avl NFS shares:
+~showmount -e <ip>~
+*** mounting NFS share
+~mount -t nfs <ip>:/ ./<dir-name>/ -o nolock~
+
+#+begin_quote
+if we have access to the system via SSH and want to read files from another folder that a specific user can read, we would need to upload a shell to the NFS share that has the SUID of that user and then run the shell via the SSH user.
+#+end_quote
+
+* DNS
+- system for resolving computer names into IP addrs.
+- doesnt have central DB
+- stores and outputs additional info about services associated with domain.
+- DNS query can also be used to determine which computer serves as the EMAIL server for domain in question or what domain's name servers are called.
+
+** How DNS Works
+1. =computer asks (DNS Query)=
+   - computer checks its memory to see if it remembers IP addr from prev visit.
+   - if not, it reaches out to DNS resolver (usually provided by ISP)
+2. =Resolver checks its maps (Recursive lookup)=
+   - resolver has cache
+   - if no IP addr here, journey through DNS hierarchy starts.
+   - begins by asking root name server.
+   - librarian of internet.
+3. =Root Name Server Points the way=
+   - root server doesn't know exact addr, but knows who does (*TLD Name server*)
+   - points resolver in right direction
+4. =TLD NAME SERVER Narrows it down=
+   - TLD NS -> regional map
+   - knows which Authoritative NS is responsible for specific domain
+5. =Authoritative Name Server Delivers Address=
+   - Authoritative name server = final stop.
+   - street addr of website
+   - holds correct IP & sends back to resolver
+6. =Computer Connects=
+   - now that computer knows IP, can connect directly to web server hosting
+
+** types of DNS Servers
+1. Root server: 
+   - responsible for top-lvl domains (=TLD=)
+     * only required if name server doesn't respond.
+   - central interface b/w users and content on internet.
+   - [[https://www.icann.org/][Internet Corporation for Assigned Names and Numbers]] (=ICANN=) coordinates work of root name servers.
+   - =13= root servers around globe
+2. Authoritative name server:
+   - hold authority for a particular zone
+   - answer queries from their area of responsibility
+   - information is binding
+   - if auth name server cant answer, root takes over.
+   - auth NS provide answers to recursive DNS NS.
+3. Non-auhoritative name server:
+   - not responsible for particular NDS zone.
+   - collect info on specific DNS zones themselves.
+   - done through recursive/iterative DNS querying
+4. Caching DNS server:
+   - cache info from other NS for specified period.
+   - auth NS determines duration of storage
+5. Fwding server:
+   - fwd DNS queries to another DNS.
+   - only one function
+6. Resolver:
+   - not auth DNS.
+   - perform name resolution locally in computer/router
+
+** DNS Encryption
+- Mainly unencrypted
+- =DNS over TLS= (DoT)
+- =DNS over HTTPS= (DoH)
+- =DNSCrypt= encrypts traffic b/w computer and name server
+
+** DNS Records
+*** A
+ret IPv4 addr of req domain
+*** AAAA
+ret IPv6 addr of req domain
+*** MX
+ret responsible mail servers
+*** NS
+ret DNS servers
+*** TXT
+- all-rounder
+- eg: validate google search console / validate SSL cert.
+- SPF, DMARC entries set to validate mail traffic & protect from spam.
+*** CNAME
+alias for another domain name.
+- if you want =www.htb.eu= -> =hackthebox.eu=, create record for =hackthebox.eu= and CNAME record for =www.htb.eu=
+*** PTR
+- reverse lookup
+- converts IP -> valid domain names
+*** SOA
+- provides info about corresponding DNS zone & email addr of admin contact
+- located in domain's zone file.
+- specifies who is responsible for operation of domain and how DNS info for domain is managed.
+  
+** Default Config
+- 3 types of config files:
+  1) local DNS config files
+  2) zone files
+  3) reverse name resolution files
+- [[https://www.isc.org/bind/][Bind9]] v common on linux distros. ([[https://wiki.debian.org/Bind9][Bind9 Docs]])
+  - local config (=named.conf=)
+    * div into:
+      1. general settings
+      2. zone entries -> individual domains.
+    * =named.conf.local=
+    * =named.conf.options=
+    * =named.conf.log=
+
+*** Local DNS Config
+- =/etc/bind/named.conf.local=
+
+*** Zone Files
+- =/etc/bind/db.domain.com=
+- text file which desc DNS zone w BIND file format
+- point of delegation in DNS tree.
+- describes zone completely
+  - must be *precisely one* =SOA= record and *at least one* =NS= record
+  - =SOA= resource usually at beginning of zone file
+- main goal of global rules -> improve readability of zone files.
+- syntax err -> entire file unusable -> name server behaves as if zone file doesn't exist -> responds to DNS queries w =SERVFAIL= err
+
+- all =forward records= entered according to BIND format.
+- allows DNS to ID which domain, hostname, role the IP addrs belong to
+
+***** Bind
+- industy preferred zone file format.
+- well est in DNS server software
+
+*** Reverse Name Resolution Zone File
+- =/etc/bind/db.10.129.14=
+
+** Dangerous Settings
+- list of vulns -> [[https://www.cvedetails.com/product/144/ISC-Bind.html?vendor_id=64][CVEdetails]], [[https://web.archive.org/web/20250329174745/https://securitytrails.com/blog/most-popular-types-dns-attacks][most popular attacks on DNS]]
+
+** Footprinting DNS
+- DNS server can be queried as to which other name servers are known
+- done using NS record & specs of DNS we want to query using =@= char.
+
+*** DIG - NS Query
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig ns inlanefreight.htb @10.129.14.128
+
+; <<>> DiG 9.16.1-Ubuntu <<>> ns inlanefreight.htb @10.129.14.128
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 45010
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 2
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: ce4d8681b32abaea0100000061475f73842c401c391690c7 (good)
+;; QUESTION SECTION:
+;inlanefreight.htb.             IN      NS
+
+;; ANSWER SECTION:
+inlanefreight.htb.      604800  IN      NS      ns.inlanefreight.htb.
+
+;; ADDITIONAL SECTION:
+ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
+
+;; Query time: 0 msec
+;; SERVER: 10.129.14.128#53(10.129.14.128)
+;; WHEN: So Sep 19 18:04:03 CEST 2021
+;; MSG SIZE  rcvd: 107
+#+end_src
+
+*** DIG - Version Query
+- sometimes possible to query DNS server's version using class *CHAOS* and type *TXT*.
+- entry must exist on DNS server.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig CH TXT version.bind 10.129.120.85
+
+; <<>> DiG 9.10.6 <<>> CH TXT version.bind
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 47786
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; ANSWER SECTION:
+version.bind.       0       CH      TXT     "9.10.6-P1"
+
+;; ADDITIONAL SECTION:
+version.bind.       0       CH      TXT     "9.10.6-P1-Debian"
+
+;; Query time: 2 msec
+;; SERVER: 10.129.120.85#53(10.129.120.85)
+;; WHEN: Wed Jan 05 20:23:14 UTC 2023
+;; MSG SIZE  rcvd: 101
+#+end_src
+
+*** DIG - Any Query
+to view all avl records.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig any inlanefreight.htb @10.129.14.128
+
+; <<>> DiG 9.16.1-Ubuntu <<>> any inlanefreight.htb @10.129.14.128
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 7649
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 2
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: 064b7e1f091b95120100000061476865a6026d01f87d10ca (good)
+;; QUESTION SECTION:
+;inlanefreight.htb.             IN      ANY
+
+;; ANSWER SECTION:
+inlanefreight.htb.      604800  IN      TXT     "v=spf1 include:mailgun.org include:_spf.google.com include:spf.protection.outlook.com include:_spf.atlassian.net ip4:10.129.124.8 ip4:10.129.127.2 ip4:10.129.42.106 ~all"
+inlanefreight.htb.      604800  IN      TXT     "atlassian-domain-verification=t1rKCy68JFszSdCKVpw64A1QksWdXuYFUeSXKU"
+inlanefreight.htb.      604800  IN      TXT     "MS=ms97310371"
+inlanefreight.htb.      604800  IN      SOA     inlanefreight.htb. root.inlanefreight.htb. 2 604800 86400 2419200 604800
+inlanefreight.htb.      604800  IN      NS      ns.inlanefreight.htb.
+
+;; ADDITIONAL SECTION:
+ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
+
+;; Query time: 0 msec
+;; SERVER: 10.129.14.128#53(10.129.14.128)
+;; WHEN: So Sep 19 18:42:13 CEST 2021
+;; MSG SIZE  rcvd: 437
+#+end_src
+
+*** DIG - AXFR Zone Transfer
+- [[file:20260530145602-info_gathering.org::*Zone Transfer][Zone Transfer]] -> transfer of zones to another server in DNS. involves mere transfer of files or records and detection of discrepancies in data sets of servers involved
+  - happens over =TCP/53=.
+  - Procedure abbr. -> *Async Full Transfer Zone*
+
+- DNS fail -> severe consequences to company.
+  - zone file invariably kept identical on several name servers.
+  - when changes made, all servers must be synced.
+  - sync b/w servers -> *zone transfer*
+  - =rndc-key= -> servers make sure that they comm with their own master or slave.
+
+- DNS entries created mod, del only on primary.
+  - done by manually editing relevant zone files / automatically by a dynamic update from DB.
+  - *MASTER* -> serves as direct source for syncing a zone file.
+  - *SLAVE* -> obtains zone data from master.
+    - primary always master.
+    - secondary -> master/slave.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dig axfr inlanefreight.htb @10.129.14.128
+
+; <<>> DiG 9.16.1-Ubuntu <<>> axfr inlanefreight.htb @10.129.14.128
+;; global options: +cmd
+inlanefreight.htb.      604800  IN      SOA     inlanefreight.htb. root.inlanefreight.htb. 2 604800 86400 2419200 604800
+inlanefreight.htb.      604800  IN      TXT     "MS=ms97310371"
+inlanefreight.htb.      604800  IN      TXT     "atlassian-domain-verification=t1rKCy68JFszSdCKVpw64A1QksWdXuYFUeSXKU"
+inlanefreight.htb.      604800  IN      TXT     "v=spf1 include:mailgun.org include:_spf.google.com include:spf.protection.outlook.com include:_spf.atlassian.net ip4:10.129.124.8 ip4:10.129.127.2 ip4:10.129.42.106 ~all"
+inlanefreight.htb.      604800  IN      NS      ns.inlanefreight.htb.
+app.inlanefreight.htb.  604800  IN      A       10.129.18.15
+internal.inlanefreight.htb. 604800 IN   A       10.129.1.6
+mail1.inlanefreight.htb. 604800 IN      A       10.129.18.201
+ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
+inlanefreight.htb.      604800  IN      SOA     inlanefreight.htb. root.inlanefreight.htb. 2 604800 86400 2419200 604800
+;; Query time: 4 msec
+;; SERVER: 10.129.14.128#53(10.129.14.128)
+;; WHEN: So Sep 19 18:51:19 CEST 2021
+;; XFR size: 9 records (messages 1, bytes 520)
+#+end_src
+
+*** Subdomain Brute Forcing
+#+begin_src 
+
+biscuitrescue@htb[/htb]$ dnsenum --dnsserver 10.129.14.128 --enum -p 0 -s 0 -o subdomains.txt -f /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt inlanefreight.htb
+
+dnsenum VERSION:1.2.6
+
+-----   inlanefreight.htb   -----
+
+
+Host's addresses:
+__________________
+
+
+
+Name Servers:
+______________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+
+Mail (MX) Servers:
+___________________
+
+
+
+Trying Zone Transfers and getting Bind Versions:
+_________________________________________________
+
+unresolvable name: ns.inlanefreight.htb at /usr/bin/dnsenum line 900 thread 1.
+
+Trying Zone Transfer for inlanefreight.htb on ns.inlanefreight.htb ...
+AXFR record query failed: no nameservers
+
+
+Brute forcing with /home/cry0l1t3/Pentesting/SecLists/Discovery/DNS/subdomains-top1million-110000.txt:
+_______________________________________________________________________________________________________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+mail1.inlanefreight.htb.                 604800   IN    A        10.129.18.201
+app.inlanefreight.htb.                   604800   IN    A        10.129.18.15
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+...SNIP...
+done.
+
+#+end_src
+
+- [[https://github.com/fwaeytens/dnsenum][DNSenum]]
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ dnsenum --dnsserver 10.129.14.128 --enum -p 0 -s 0 -o subdomains.txt -f /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt inlanefreight.htb
+
+dnsenum VERSION:1.2.6
+
+-----   inlanefreight.htb   -----
+
+
+Host's addresses:
+__________________
+
+
+
+Name Servers:
+______________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+
+Mail (MX) Servers:
+___________________
+
+
+
+Trying Zone Transfers and getting Bind Versions:
+_________________________________________________
+
+unresolvable name: ns.inlanefreight.htb at /usr/bin/dnsenum line 900 thread 1.
+
+Trying Zone Transfer for inlanefreight.htb on ns.inlanefreight.htb ...
+AXFR record query failed: no nameservers
+
+
+Brute forcing with /home/cry0l1t3/Pentesting/SecLists/Discovery/DNS/subdomains-top1million-110000.txt:
+_______________________________________________________________________________________________________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+mail1.inlanefreight.htb.                 604800   IN    A        10.129.18.201
+app.inlanefreight.htb.                   604800   IN    A        10.129.18.15
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+...SNIP...
+done.
+#+end_src
+
+* SMTP
+
+- [[https://serversmtp.com/smtp-error/][SMTP response codes]]
+
+- protocol for sending emails in IP network.
+- can be used between (email client and outgoing mail server) or (2 SMTP servers)
+- usually combined with IMAP or POP3 (fetching emails)
+- client-server based protocol.
+- default port = =25=
+- newer SMTP servers also use TCP =587=
+  - used to recieve mail from auth users/servers -> using STARTTLS command to switch existing plaintext ocnnection to encrypted
+- prevents spam using auth mechanisms which allow only authorised users to send emails.
+  - most modern SMTP servers support protocol extension ESMTP with SMTP-Auth.
+
+
+** Steps
++ after sending email, SMTP Client (=Mail User Agent (MUA)=) converts it into header and body and uploads both to SMTP server.
++ this has a =Mail Transfer Agent= (=MTA=) -> software basis for sending and receiving email
++ =MTA= checks email for size and spam and stores it.
++ =Mail Submission Agent= (=MSA=) precedes =MTA= to relieve it. Checks validity (origin) of email.
+  - =MSA= -> =Relay= server. (can do *OPEN RELAY ATTACK*)
++ On arrival -> data packets reassembled to form complete email.
++ =MDA= -> transfers to recipient's mailbox.
+
+Client (MUA) -> MSA -> Open Relay (MTA) -> MDA -> Mailbox (POP3/IMAP)
+
+** Disadvantages of SMTP:
+1. sending email using SMTP doesn't return usable delivery confirmation.
+   + specs of protocol provide for this notif, but formatting not specified by default.
+   + usually english-only err message ret, including header of undelivered msg.
+2. users not auth when connection est. -> sender unreliable.
+   + open SMTP relays usuallyoften misused to send spam.
+   + originators use fake sender addresses to not be traced (mail spoofing)
+
+** Prevention of SMTP misuse
+1. [[http://dkim.org/][DomainKeys]] =DKIM=
+2. [[https://dmarcian.com/what-is-spf/][Sender Policy Framework]] =SPF=
+ 
+** ESMTP
+-> Extended SMTP 
+- uses TLS after EHLO command by sending *STARTTLS*.
+
+** Default Config
+- ~/etc/postfix/main.cf~
+
+  #+begin_src txt
+smtpd_banner = ESMTP Server 
+biff = no
+append_dot_mydomain = no
+readme_directory = no
+compatibility_level = 2
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+myhostname = mail1.inlanefreight.htb
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+smtp_generic_maps = hash:/etc/postfix/generic
+mydestination = $myhostname, localhost 
+masquerade_domains = $myhostname
+mynetworks = 127.0.0.0/8 10.129.0.0/16
+mailbox_size_limit = 0
+recipient_delimiter = +
+smtp_bind_address = 0.0.0.0
+inet_protocols = ipv4
+smtpd_helo_restrictions = reject_invalid_hostname
+home_mailbox = /home/postfix
+  #+end_src
+
+** Init Connection
+use telnet.
+~telnet <ip> 25~
+#+begin_src bash
+biscuitrescue@htb[/htb]$ telnet 10.129.14.128 25
+
+Trying 10.129.14.128...
+Connected to 10.129.14.128.
+Escape character is '^]'.
+220 ESMTP Server 
+
+
+HELO mail1.inlanefreight.htb
+
+250 mail1.inlanefreight.htb
+
+
+EHLO mail1
+
+250-mail1.inlanefreight.htb
+250-PIPELINING
+250-SIZE 10240000
+250-ETRN
+250-ENHANCEDSTATUSCODES
+250-8BITMIME
+250-DSN
+250-SMTPUTF8
+250 CHUNKING
+#+end_src
+
+** Enumerate -> VRFY
+- doesnt always work.
+- may issue *code 252* and confirm existence of user that doesn't exist on system.
+#+begin_src bash
+biscuitrescue@htb[/htb]$ telnet 10.129.14.128 25
+
+Trying 10.129.14.128...
+Connected to 10.129.14.128.
+Escape character is '^]'.
+220 ESMTP Server 
+
+VRFY root
+
+252 2.0.0 root
+
+
+VRFY cry0l1t3
+
+252 2.0.0 cry0l1t3
+
+
+VRFY testuser
+
+252 2.0.0 testuser
+
+
+VRFY aaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+252 2.0.0 aaaaaaaaaaaaaaaaaaaaaaaaaaaa
+#+end_src
+
+#+begin_quote
+The mail header is the carrier of a large amount of interesting information in an email. Among other things, it provides information about the sender and recipient, the time of sending and arrival, the stations the email passed on its way, the content and format of the message, and the sender and recipient.
+#+end_quote
+- header doesn't contain info necessary for technical delivery.
+- both sender and recipient can access header of email.
+- not visible T first glance.
+
+** working through web proxy
+- ~CONNECT <ip>:25 HTTP/1.0~
+
+** Sending Email
+#+begin_src bash
+biscuitrescue@htb[/htb]$ telnet 10.129.14.128 25
+
+Trying 10.129.14.128...
+Connected to 10.129.14.128.
+Escape character is '^]'.
+220 ESMTP Server
+
+
+EHLO inlanefreight.htb
+
+250-mail1.inlanefreight.htb
+250-PIPELINING
+250-SIZE 10240000
+250-ETRN
+250-ENHANCEDSTATUSCODES
+250-8BITMIME
+250-DSN
+250-SMTPUTF8
+250 CHUNKING
+
+
+MAIL FROM: <cry0l1t3@inlanefreight.htb>
+
+250 2.1.0 Ok
+
+
+RCPT TO: <mrb3n@inlanefreight.htb> NOTIFY=success,failure
+
+250 2.1.5 Ok
+
+
+DATA
+
+354 End data with <CR><LF>.<CR><LF>
+
+From: <cry0l1t3@inlanefreight.htb>
+To: <mrb3n@inlanefreight.htb>
+Subject: DB
+Date: Tue, 28 Sept 2021 16:32:51 +0200
+Hey man, I am trying to access our XY-DB but the creds don't work. 
+Did you make any changes there?
+.
+
+250 2.0.0 Ok: queued as 6E1CF1681AB
+
+
+QUIT
+
+221 2.0.0 Bye
+Connection closed by foreign host.
+#+end_src
+
+** Footprinting
+*** NMAP
+- =smtp-commands= -> NSE default
+  uses =EHLO= -> lists all possible cmds which can be exec'd on server
+- =smtp-open-relay= -> NSE
+  ID open relay using 16 different tests.
+  
+* IMAP & POP3
+** IMAP
+- [[https://www.atmail.com/blog/imap-commands/?source=post_page-----5e5c99547f8a---------------------------------------][IMAP COMMANDS]]
+Network protocol for online mgmt of emails on remote server
+- access to emails from mail server
+- allows online mgmt of online emails directly on server
+- supports folder structs.
+- client server based.
+- allows sync of local email client w mailbox on server
+- sort of NFS for emails -> problem free sync across independent clients.
+** POP3
+- only provides listing, retrieving and deleting emails
+** Clients
+- port =143=, enc -> =143=, =993=
+- uses text-based cmd in =ASCII=
+
+- acess structs online -> create local copies -> uniform DB across several clients.
+- IMAP -> text-based
+  - browsing directly on server.
+  - possible for several users to access email server simultaneously.
+- managing emails needs active connection to server.
+- some clients offer offline mode w local copy of mailbox.
+  - client syncs all offline local changes when connection re-est.
+    
+** Footprinting
+- POP3 -> =110=, =995= (SSL/TLS)
+- IMAP -> =143=, =993= (SSL/TLS)
+
+*** NMAP
+
+*** CURL
+~curl -k 'imaps://10.129.14.128' --user user:p4ssw0rd~
+- use ~-v~ to see how connection is made.
+
+*** OpenSSL - TLS Encrypted Interaction POP3
+#+begin_src bash
+biscuitrescue@htb[/htb]$ openssl s_client -connect 10.129.14.128:pop3s
+
+CONNECTED(00000003)
+Can't use SSL_get_servername
+depth=0 C = US, ST = California, L = Sacramento, O = Inlanefreight, OU = Customer Support, CN = mail1.inlanefreight.htb, emailAddress = cry0l1t3@inlanefreight.htb
+verify error:num=18:self signed certificate
+verify return:1
+depth=0 C = US, ST = California, L = Sacramento, O = Inlanefreight, OU = Customer Support, CN = mail1.inlanefreight.htb, emailAddress = cry0l1t3@inlanefreight.htb
+verify return:1
+---
+Certificate chain
+ 0 s:C = US, ST = California, L = Sacramento, O = Inlanefreight, OU = Customer Support, CN = mail1.inlanefreight.htb, emailAddress = cry0l1t3@inlanefreight.htb
+
+...SNIP...
+
+---
+read R BLOCK
+---
+Post-Handshake New Session Ticket arrived:
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : TLS_AES_256_GCM_SHA384
+    Session-ID: 3CC39A7F2928B252EF2FFA5462140B1A0A74B29D4708AA8DE1515BB4033D92C2
+    Session-ID-ctx:
+    Resumption PSK: 68419D933B5FEBD878FF1BA399A926813BEA3652555E05F0EC75D65819A263AA25FA672F8974C37F6446446BB7EA83F9
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 7200 (seconds)
+    TLS session ticket:
+    0000 - d7 86 ac 7e f3 f4 95 35-88 40 a5 b5 d6 a6 41 e4   ...~...5.@....A.
+    0010 - 96 6c e6 12 4f 50 ce 72-36 25 df e1 72 d9 23 94   .l..OP.r6%..r.#.
+    0020 - cc 29 90 08 58 1b 57 ab-db a8 6b f7 8f 31 5b ad   .)..X.W...k..1[.
+    0030 - 47 94 f4 67 58 1f 96 d9-ca ca 56 f9 7a 12 f6 6d   G..gX.....V.z..m
+    0040 - 43 b9 b6 68 de db b2 47-4f 9f 48 14 40 45 8f 89   C..h...GO.H.@E..
+    0050 - fa 19 35 9c 6d 3c a1 46-5c a2 65 ab 87 a4 fd 5e   ..5.m<.F\.e....^
+    0060 - a2 95 25 d4 43 b8 71 70-40 6c fe 6f 0e d1 a0 38   ..%.C.qp@l.o...8
+    0070 - 6e bd 73 91 ed 05 89 83-f5 3e d9 2a e0 2e 96 f8   n.s......>.*....
+    0080 - 99 f0 50 15 e0 1b 66 db-7c 9f 10 80 4a a1 8b 24   ..P...f.|...J..$
+    0090 - bb 00 03 d4 93 2b d9 95-64 44 5b c2 6b 2e 01 b5   .....+..dD[.k...
+    00a0 - e8 1b f4 a4 98 a7 7a 7d-0a 80 cc 0a ad fe 6e b3   ......z}......n.
+    00b0 - 0a d6 50 5d fd 9a b4 5c-28 a4 c9 36 e4 7d 2a 1e   ..P]...\(..6.}*.
+
+    Start Time: 1632081313
+    Timeout   : 7200 (sec)
+    Verify return code: 18 (self signed certificate)
+    Extended master secret: no
+    Max Early Data: 0
+---
+read R BLOCK
++OK HTB-Academy POP3 Server
+#+end_src
+
+*** OpenSSL - TLS Encrypted Interaction IMAP
+#+begin_src bash
+biscuitrescue@htb[/htb]$ openssl s_client -connect 10.129.14.128:imaps
+
+CONNECTED(00000003)
+Can't use SSL_get_servername
+depth=0 C = US, ST = California, L = Sacramento, O = Inlanefreight, OU = Customer Support, CN = mail1.inlanefreight.htb, emailAddress = cry0l1t3@inlanefreight.htb
+verify error:num=18:self signed certificate
+verify return:1
+depth=0 C = US, ST = California, L = Sacramento, O = Inlanefreight, OU = Customer Support, CN = mail1.inlanefreight.htb, emailAddress = cry0l1t3@inlanefreight.htb
+verify return:1
+---
+Certificate chain
+ 0 s:C = US, ST = California, L = Sacramento, O = Inlanefreight, OU = Customer Support, CN = mail1.inlanefreight.htb, emailAddress = cry0l1t3@inlanefreight.htb
+
+...SNIP...
+
+---
+read R BLOCK
+---
+Post-Handshake New Session Ticket arrived:
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : TLS_AES_256_GCM_SHA384
+    Session-ID: 2B7148CD1B7B92BA123E06E22831FCD3B365A5EA06B2CDEF1A5F397177130699
+    Session-ID-ctx:
+    Resumption PSK: 4D9F082C6660646C39135F9996DDA2C199C4F7E75D65FA5303F4A0B274D78CC5BD3416C8AF50B31A34EC022B619CC633
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 7200 (seconds)
+    TLS session ticket:
+    0000 - 68 3b b6 68 ff 85 95 7c-8a 8a 16 b2 97 1c 72 24   h;.h...|......r$
+    0010 - 62 a7 84 ff c3 24 ab 99-de 45 60 26 e7 04 4a 7d   b....$...E`&..J}
+    0020 - bc 6e 06 a0 ff f7 d7 41-b5 1b 49 9c 9f 36 40 8d   .n.....A..I..6@.
+    0030 - 93 35 ed d9 eb 1f 14 d7-a5 f6 3f c8 52 fb 9f 29   .5........?.R..)
+    0040 - 89 8d de e6 46 95 b3 32-48 80 19 bc 46 36 cb eb   ....F..2H...F6..
+    0050 - 35 79 54 4c 57 f8 ee 55-06 e3 59 7f 5e 64 85 b0   5yTLW..U..Y.^d..
+    0060 - f3 a4 8c a6 b6 47 e4 59-ee c9 ab 54 a4 ab 8c 01   .....G.Y...T....
+    0070 - 56 bb b9 bb 3b f6 96 74-16 c9 66 e2 6c 28 c6 12   V...;..t..f.l(..
+    0080 - 34 c7 63 6b ff 71 16 7f-91 69 dc 38 7a 47 46 ec   4.ck.q...i.8zGF.
+    0090 - 67 b7 a2 90 8b 31 58 a0-4f 57 30 6a b6 2e 3a 21   g....1X.OW0j..:!
+    00a0 - 54 c7 ba f0 a9 74 13 11-d5 d1 ec cc ea f9 54 7d   T....t........T}
+    00b0 - 46 a6 33 ed 5d 24 ed b0-20 63 43 d8 8f 14 4d 62   F.3.]$.. cC...Mb
+
+    Start Time: 1632081604
+    Timeout   : 7200 (sec)
+    Verify return code: 18 (self signed certificate)
+    Extended master secret: no
+    Max Early Data: 0
+---
+read R BLOCK
+ ,* OK [CAPABILITY IMAP4rev1 SASL-IR LOGIN-REFERRALS ID ENABLE IDLE LITERAL+ AUTH=PLAIN] HTB-Academy IMAP4 v.0.21.4
+#+end_src
+
+*** Interacting with IMAP
+
+#+begin_src bash
+1 LOGIN <username> <pass>
+1 SELECT INBOX
+1 FETCH 1 BODY[TEXT]
+#+end_src
+
+* TODO SNMP
+- Simple Network Management Protocol
+- created to monitor network dev
+- handles config tasks and change settings remotely
+- also transmits control cmds using agents over *UDP 161*
+- sends =traps= over *UDP 162* to client without it being explicitly req.
+- SNMP trap sent to client once speicific event occurs in server-side.
+
+*** MIB
+*Management Information Base*
+
+- to ensure SNMP access wrks across manufacturers & w diff client-server combinations.
+- independent format for storing device info.
+- text file -> all queryable SNMP objects of device are listed in standardised tree hierarchy.
+- contains atleast one [[*OID]] -> provides unique addr, name, info about type, access rights.
+- written in =Abstract Syntax Notation One= (=ASN.1=) based ASCII test format.
+- do not contain data. explain where to find what info and what it looks like, which ret val for specific OID, which data type used.
+
+*** OID
+- represents node in hierarchical namespace.
+- sequence of numbers uniquely IDs each node. -> allows node pos in tree to be determined.
+  - longer chain = more specific info
+- consist of integers.
+- usually concat by dot notation.
+- [[https://www.alvestrand.no/objectid/][Object ID Registry]]
+
+*** SNMPv1
+- net mgmt & monitoring
+- supports retrieval of info from net devs.
+- allows config of devs
+- provides traps (notif of events)
+ 
+***** no builtin authentication mechanism
+***** doesn't support encryption
+
+*** SNMPv2
+-> v2c 
+
+Signed-off-by: biscuitrescue <karttikeyasinha11@gmail.com>
+Signed-off-by: biscuitrescue <karttikeyasinha11@gmail.com>
+
+# c -> community based SNMP
+
+*community string* which provides security -> transmitted in plaintext -> no builtin encryption
+
+*** SNMPv3
+- increased security
+
+***** features
+1. authentication using username & password
+2. transmission encryption of datavia pre-shared key
+
+**** Community stirngs
+- passwords that are used to determine whether requested info can be viewed or not
+
+*** Config
+- ~/etc/snmp/snmpd.conf~
+
+**** Dangerous
+- ~rwuser noauth~: provides full access to OID tree without authentication
+- ~rwcommunity <community string> <IPv4 addr>~
+- ~rwcommunity6 <community string> <IPv6 addr>~
+
+** Footprinting
+*** snmpwalk
+- ~snmpwalk -v2c -c public 10.129.14.128~
+*** OneSixtyOne
+- ~onesixtyone -c /opt/useful/seclists/Discovery/SNMP/snmp.txt 10.129.14.128~
+*** Braa
+- after we know community string
+- brute-force the individual OIDs.
+
+- ~braa public@10.129.14.128:.1.3.6.*~
+*** TODO LEARN OIDS
+
+* MYSQL
+- port =TCP 3306=
+
+** Footprinting
+
+*** NMAP
+- ~--script mysql*~
+  
+*** Interaction
+- most important DB:
+  1. =system schema= (=sys=)
+  2. =information schema= (=information_scheme=)
+
+- use ~--ssl=FALSE or --skip-ssl~ if it complains for *TLS/SSL* self cert
+
+* MSSQL
+ 
+** Clients
+- *SSMS*:
+  client-side app. can exist wherever dev plans to manage DB from.
+  we could come Cross vulnerable system with SSMS  w saved creds
+
+** DBs
+1. *master*: tracks all system info for SQL server instance
+2. *model*: template DB. acts as struct for every new  created.
+3. *msdb*: SQL Server Agent uses this to sched jobs & alerts.
+4. *tempdb*: temp objects
+5. *resource*: read only DB -> sys objects included w server.
+
+** Default Config
+- runs as =NT SERVICE\MSSQLSERVER= when initially installed and configured to be Accessible in network.
+- connecting from client side -> *Windows Authentication*.
+- encryption not enforced when attempting to connect
+- authentication set to *windows authentication* -> Windows will process login req, use local SAM DB or domain controller (hosting active directory)
+- if compromised account w active dir -> privilege escalation, lateral movement across windows domain env.
+
+** Dangerous Settings
+1. clients not using encryption to connect to MSSQL server.
+2. self-signed certs when encryption /is/ being used.
+3. [[https://docs.microsoft.com/en-us/sql/tools/configuration-manager/named-pipes-properties?view=sql-server-ver15][named pipes]]
+4. weak & default =sa= creds. admins may forget to disable account.
+
+** Footprinting service
+- port =TCP 1433=
+
+*** NMAP
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER -sV -p 1433 10.129.201.248
+
+Starting Nmap 7.91 ( https://nmap.org ) at 2021-11-08 09:40 EST
+Nmap scan report for 10.129.201.248
+Host is up (0.15s latency).
+
+PORT     STATE SERVICE  VERSION
+1433/tcp open  ms-sql-s Microsoft SQL Server 2019 15.00.2000.00; RTM
+| ms-sql-ntlm-info: 
+|   Target_Name: SQL-01
+|   NetBIOS_Domain_Name: SQL-01
+|   NetBIOS_Computer_Name: SQL-01
+|   DNS_Domain_Name: SQL-01
+|   DNS_Computer_Name: SQL-01
+|_  Product_Version: 10.0.17763
+
+Host script results:
+| ms-sql-dac: 
+|_  Instance: MSSQLSERVER; DAC port: 1434 (connection failed)
+| ms-sql-info: 
+|   Windows server name: SQL-01
+|   10.129.201.248\MSSQLSERVER: 
+|     Instance name: MSSQLSERVER
+|     Version: 
+|       name: Microsoft SQL Server 2019 RTM
+|       number: 15.00.2000.00
+|       Product: Microsoft SQL Server 2019
+|       Service pack level: RTM
+|       Post-SP patches applied: false
+|     TCP port: 1433
+|     Named pipe: \\10.129.201.248\pipe\sql\query
+|_    Clustered: false
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 8.52 seconds
+
+#+end_src
+
+*** Metasploit
+- aux scanner -> =mssql_ping= -> scans MSSQL service 
+  
+#+begin_src bash
+msf6 auxiliary(scanner/mssql/mssql_ping) > set rhosts 10.129.201.248
+
+rhosts => 10.129.201.248
+
+
+msf6 auxiliary(scanner/mssql/mssql_ping) > run
+
+[*] 10.129.201.248:       - SQL Server information for 10.129.201.248:
+[+] 10.129.201.248:       -    ServerName      = SQL-01
+[+] 10.129.201.248:       -    InstanceName    = MSSQLSERVER
+[+] 10.129.201.248:       -    IsClustered     = No
+[+] 10.129.201.248:       -    Version         = 15.0.2000.5
+[+] 10.129.201.248:       -    tcp             = 1433
+[+] 10.129.201.248:       -    np              = \\SQL-01\pipe\sql\query
+[*] 10.129.201.248:       - Scanned 1 of 1 hosts (100% complete)
+[*] Auxiliary module execution completed
+#+end_src
+
+*** connecting w mssqlclient.py
+- guess / gain access to creds
+- uses T-SQL
+#+begin_src bash
+biscuitrescue@htb[/htb]$ python3 mssqlclient.py Administrator@10.129.201.248 -windows-auth
+
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+Password:
+[*] Encryption required, switching to TLS
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: master
+[*] ENVCHANGE(LANGUAGE): Old Value: , New Value: us_english
+[*] ENVCHANGE(PACKETSIZE): Old Value: 4096, New Value: 16192
+[*] INFO(SQL-01): Line 1: Changed database context to 'master'.
+[*] INFO(SQL-01): Line 1: Changed language setting to us_english.
+[*] ACK: Result: 1 - Microsoft SQL Server (150 7208) 
+[!] Press help for extra shell commands
+
+SQL> select name from sys.databases
+
+name                                                                                                                               
+
+--------------------------------------------------------------------------------------
+
+master                                                                                                                             
+
+tempdb                                                                                                                             
+
+model                                                                                                                              
+
+msdb                                                                                                                               
+
+Transactions
+#+end_src
+
+* ORACLE TNS
+- *Oracle Transparent Network Substrate* (=TNS=)
+- communication protocol -> facilitates comms b/w oracle DB and apps over networks.
+- supports =IPX/SPX=, =TCP/IP= protocol stacks
+- preferred sol for managing large complex DB
+- builtin encryption
+- updated to support IPv6, SSL/TLS -> suitable for: 
+  1. name resolution
+  2. connection mgmt
+  3. load balancing
+  4. security
+- encryption b/w client & server through additional layer of security over TCP/IP layer.
+
+** Default Config
+- default listener port =TCP/1521=
+- listener supports -> TCP, UDP, IPX/SPX, AppleTalk
+- listener supports multiple network interfaces, listens on specific IP addrs, or all avl network interfaces.
+- can be remotely managed in =Oracle 8i/9i= but not =10g/11g=
+- =v9= -> default pass: *CHANGE_ON_INSTALL*
+- orgs use =finger= with oracle. makes oracle service vulnerable when we have req knowledge of home dir
+  
+*** config files
+  - ~tnsnames.ora~ [[ol][link]]
+  - ~listener.ora~
+  - =$ORACLE_HOME/network/admin/=
+
+** SID 
+
+*** NMAP 
+- ~--script oracle-sid-brute~
+
+*** ODAT
+- ~./odat.py all -s <ip>~
+
+** SQLplus
+- ~sqlplus <user>/<pass>@<ip>/<SID>~
+
+**** ORACLE RDBMS Interaction
+#+begin_src sql
+select table_name from all_tables;
+#+end_src
+
+**** DB Enumeration
+#+begin_src bash
+sqlplus <user>/<pass>@<ip>/<SID> as sysdba
+#+end_src
+
+**** Extract pass hashes
+#+begin_src sql
+select name, password from sys.user$;
+#+end_src
+
+**** File Upload
+#+begin_src bash
+biscuitrescue@htb[/htb]$ echo "Oracle File Upload Test" > testing.txt
+biscuitrescue@htb[/htb]$ ./odat.py utlfile -s 10.129.204.235 -d XE -U scott -P tiger --sysdba --putFile C:\\inetpub\\wwwroot testing.txt ./testing.txt
+
+[1] (10.129.204.235:1521): Put the ./testing.txt local file in the C:\inetpub\wwwroot folder like testing.txt on the 10.129.204.235 server                                                                                                  
+[+] The ./testing.txt file was created on the C:\inetpub\wwwroot directory on the 10.129.204.235 server like the testing.txt file
+
+# checking if file up approach works w curl
+biscuitrescue@htb[/htb]$ curl -X GET http://10.129.204.235/testing.txt
+#+end_src
+
+* IPMI
+requires power source, LAN connection
+- set of standardised specs for hw-based host mgmt systems used for system mgmt and monitoring.
+- autonomous sybsystem
+- works indepently of host's BIOS, CPU, firmware, underlying OS.
+- manage and monitor even if powered off or in unresponsive state.
+- operates using direct network connection to system hw; doesn't require access to OS via login shell.
+- can be used for remote up to systems w/out requiring physical access to target host
+
+- can monitor:
+  * system temp
+  * voltage
+  * fan status
+  * power supplies
+  * query inventory info
+  * review hw logs
+  * alerting using SNMP
+
+- Used in 3 ways:
+  * before OS boots to modify BIOS settings
+  * when host is fully powered off
+  * access to host after system failure
+
+
+** IPMI Components
+- Baseboard Management Controller (BMC)
+  micro-controller. essential component
+- Intelligent Chassis Management Bus (ICMB)
+  interface which permits comms from one chassis to another
+- Intelligent Platform Management Bus (IPMB)
+  extends BMC
+- IPMI Memory
+  stores sys event log, repo store data etc
+- Comms Interfaces
+  local system interfaces, serial & LAN interfaces, ICMB & PCI Management Bus
+
+** Footprinting
+- port =UDP/623=
+- BMCs typically impl as embedded ARM running Linux, connected directly to host's motherboard.
+  - also built into many motherboards, but can also be added to system as PCI card
+  - most common BMCs:
+    - HP iLO -> root:calvin
+    - Dell DRAC -> Administrator:{random 8-char string of numbers & UPPERCASE letters}
+    - Supermicro IPMI -> ADMIN:ADMIN
+    
+*** NMAP
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo nmap -sU --script ipmi-version -p 623 ilo.inlanfreight.local
+
+Starting Nmap 7.92 ( https://nmap.org ) at 2021-11-04 21:48 GMT
+Nmap scan report for ilo.inlanfreight.local (172.16.2.2)
+Host is up (0.00064s latency).
+
+PORT    STATE SERVICE
+623/udp open  asf-rmcp
+| ipmi-version:
+|   Version:
+|     IPMI-2.0
+|   UserAuth:
+|   PassAuth: auth_user, non_null_user
+|_  Level: 2.0
+MAC Address: 14:03:DC:674:18:6A (Hewlett Packard Enterprise)
+
+Nmap done: 1 IP address (1 host up) scanned in 0.46 seconds
+#+end_src
+
+*** Metasploit Version scan
+- ~auxiliary/scanner/ipmi/ipmi_version~
+
+#+begin_src msfconsole
+msf6 > use auxiliary/scanner/ipmi/ipmi_version 
+msf6 auxiliary(scanner/ipmi/ipmi_version) > set rhosts 10.129.42.195
+msf6 auxiliary(scanner/ipmi/ipmi_version) > show options 
+
+Module options (auxiliary/scanner/ipmi/ipmi_version):
+
+   Name       Current Setting  Required  Description
+   ----       ---------------  --------  -----------
+   BATCHSIZE  256              yes       The number of hosts to probe in each set
+   RHOSTS     10.129.42.195    yes       The target host(s), range CIDR identifier, or hosts file with syntax 'file:<path>'
+   RPORT      623              yes       The target port (UDP)
+   THREADS    10               yes       The number of concurrent threads
+
+
+msf6 auxiliary(scanner/ipmi/ipmi_version) > run
+
+[*] Sending IPMI requests to 10.129.42.195->10.129.42.195 (1 hosts)
+[+] 10.129.42.195:623 - IPMI - IPMI-2.0 UserAuth(auth_msg, auth_user, non_null_user) PassAuth(password, md5, md2, null) Level(1.5, 2.0) 
+[*] Scanned 1 of 1 hosts (100% complete)
+[*] Auxiliary module execution completed
+#+end_src
+
+** Dangerous Settings
+- [[https://web.archive.org/web/20260421071724/http://fish2.com/ipmi/remote-pw-cracking.html][flaw]] in RAKP protocol in IPMI 2.0
+- before authentication, server sends salted SHA1/MD5 hash of user's pass to client
+- can be leveraged to get pass hash for any valid user
+- pass hash cracked offline using hashcat mode 7300 (dict attack)
+  - for HP iLO default (~hashcat -m 7300 ipmi.txt -a 3 ?1?1?1?1?1?1?1?1 -1 ?d?u~)
+    - tries all combinations of upper case letters and numbers for 8char pass
+- no direct fix.
+  - v long, difficult to crack passes
+  - network segmentation rules to restrict direct access to BMCs
+
+*** Metasploit Dumping Hashes
+- retrieve IPMI Hashes
+#+begin_src msf6
+msf6 > use auxiliary/scanner/ipmi/ipmi_dumphashes 
+msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > set rhosts 10.129.42.195
+msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > show options 
+
+Module options (auxiliary/scanner/ipmi/ipmi_dumphashes):
+
+   Name                 Current Setting                                                    Required  Description
+   ----                 ---------------                                                    --------  -----------
+   CRACK_COMMON         true                                                               yes       Automatically crack common passwords as they are obtained
+   OUTPUT_HASHCAT_FILE                                                                     no        Save captured password hashes in hashcat format
+   OUTPUT_JOHN_FILE                                                                        no        Save captured password hashes in john the ripper format
+   PASS_FILE            /usr/share/metasploit-framework/data/wordlists/ipmi_passwords.txt  yes       File containing common passwords for offline cracking, one per line
+   RHOSTS               10.129.42.195                                                      yes       The target host(s), range CIDR identifier, or hosts file with syntax 'file:<path>'
+   RPORT                623                                                                yes       The target port
+   THREADS              1                                                                  yes       The number of concurrent threads (max one per host)
+   USER_FILE            /usr/share/metasploit-framework/data/wordlists/ipmi_users.txt      yes       File containing usernames, one per line
+
+
+
+msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > run
+
+[+] 10.129.42.195:623 - IPMI - Hash found: ADMIN:8e160d4802040000205ee9253b6b8dac3052c837e23faa631260719fce740d45c3139a7dd4317b9ea123456789abcdefa123456789abcdef140541444d494e:a3e82878a09daa8ae3e6c22f9080f8337fe0ed7e
+[+] 10.129.42.195:623 - IPMI - Hash for user 'ADMIN' matches password 'ADMIN'
+[*] Scanned 1 of 1 hosts (100% complete)
+[*] Auxiliary module execution completed
+#+end_src
+

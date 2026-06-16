@@ -1,0 +1,264 @@
+:PROPERTIES:
+:ID:       34855079-18d3-4154-b44b-f2d9b2ed1886
+:END:
+#+title: Cracking Techniques
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#cracking-techniques][Cracking Techniques]]
+    - [[#rainbow-tables][Rainbow Tables]]
+    - [[#dict-attacks][Dict Attacks]]
+    - [[#brute-force][Brute Force]]
+  - [[#john-the-ripper][John The Ripper]]
+    - [[#cracking-modes][Cracking modes]]
+    - [[#hash-formats][Hash Formats]]
+    - [[#cracking-files][Cracking Files]]
+  - [[#hashcat][HashCat]]
+    - [[#hash-types][Hash Types]]
+    - [[#attack-modes][Attack Modes]]
+  - [[#custom-wordlists--rules][Custom Wordlists & Rules]]
+    - [[#most-common-password-policies][Most Common Password policies]]
+    - [[#creating-rules][Creating rules]]
+    - [[#lab][LAB]]
+  - [[#cracking-protected-files][Cracking Protected Files]]
+    - [[#hunting-for-encrypted-files][Hunting for Encrypted Files]]
+    - [[#hunting-for-ssh-keys][Hunting for SSH Keys]]
+    - [[#cracking-encrypted-ssh-keys][Cracking encrypted SSH keys]]
+    - [[#cracking-password-protected-docs][Cracking password protected docs]]
+  - [[#cracking-protected-archives][Cracking Protected Archives]]
+    - [[#zip][ZIP]]
+    - [[#openssl-encrypted-gzip][OpenSSL encrypted GZIP]]
+    - [[#cracking-bitlocker-encrypted-devices][Cracking Bitlocker encrypted devices]]
+
+* Cracking Techniques
+- passwords commonly hashed when stored
+
+***** Hashing
+- mathematical function which transforms arbitrary number of i/p bytes into fixed size o/p (~MD5~, ~SHA-256~)
+- designed to work in 1 direction
+
+****** Techniques to crack passwords
+******* Rainbow Tables -> [[*Rainbow Tables][Rainbow Tables]]
+******* Dict attacks -> [[*Dict attacks][Dict Attacks]]
+******* Brute Forcing -> [[*Brute Force][Brute Force]]
+
+*** Rainbow Tables
+- large precompiled maps of I/O values for given hash function
+- used to quickY ID pass if corresponding hash has already been mapped
+
+***** Salting
+- =salt= -> random sequence of bytes added to password before it is hashed.
+- salt usually prepended, not a secret value because system has to know what salt was used to check password hash
+- even if correct password has been mapped, combination of salt & pass has likely not
+
+*** Dict Attacks
+- =Wordlist= attack
+- one of the most efficient techniques for cracking passwords
+
+*** Brute Force
+- attempting every possible combination of chars until correct pass discovered.
+- can take very long time.
+
+** John The Ripper
+- brute-force & dict attacks
+
+*** Cracking modes
+**** Single Cracking Mode
+- rule-based cracking -> linux creds
+- generates passwords based on victim's username, homedir name, =GECOS= values (full name, room num, phone num)
+- ~john --single passwd~
+**** Wordlist Mode
+- used to crack passwd w dict attack
+- ~john --wordlist=<wordlist> <hash_file>~
+**** Incremental mode
+- powerful brute-force.
+- generates passwd based on =Markov Chains=
+- designed to test all char combinations defined by specific char set
+- prioritises more likely passwds based on training data
+- ~john --incremental <hash_file>~
+  
+*** Hash Formats
+- [[https://openwall.info/wiki/john/sample-hashes][JtR's sample hash documentation]]
+- [[https://pentestmonkey.net/cheat-sheet/john-the-ripper-hash-formats][PentestMonkey]]
+- hashID -> use ~-j~ to also get corresponding JTR format
+
+|-----------------+-----------------------------------------------------|
+| afs             | AFS (Andrew File System) password hashes            |
+| bfegg           | bfegg hashes used in Eggdrop IRC bots               |
+| bf              | Blowfish-based crypt(3) hashes                      |
+| bsdi            | BSDi crypt(3) hashes                                |
+| crypt           | Traditional Unix crypt(3) hashes                    |
+| des             | Traditional DES-based crypt(3) hashes               |
+| dmd5            | DMD5 (Dragonfly BSD MD5) password hashes            |
+| dominosec       | IBM Lotus Domino 6/7 password hashes                |
+| episerver       | EPiServer SID password hashes                       |
+| hdaa            | hdaa password hashes used in Openwall GNU/Linux     |
+| hmac-md5        | HMAC-MD5 password hashes                            |
+| hmailserver     | hMailServer password hashes                         |
+| ipb2            | Invision Power Board 2 password hashes              |
+| krb4            | Kerberos 4 password hashes                          |
+| krb5            | Kerberos 5 password hashes                          |
+| LM              | LM (Lan Manager) password hashes                    |
+| lotus5          | Lotus Notes/Domino 5 password hashes                |
+| mscash          | MS Cache password hashes                            |
+| mscash2         | MS Cache v2 password hashes                         |
+| mschapv2        | MS CHAP v2 password hashes                          |
+| mskrb5          | MS Kerberos 5 password hashes                       |
+| mssql05         | MS SQL 2005 password hashes                         |
+| mssql           | MS SQL password hashes                              |
+| mysql-fast      | MySQL fast password hashes                          |
+| mysql           | MySQL password hashes                               |
+| mysql-sha1      | MySQL SHA1 password hashes                          |
+| netlm           | NETLM password hashes                               |
+| netlmv2         | NETLMv2 password hashes                             |
+| netntlm         | NETNTLM password hashes                             |
+| netntlmv2       | NETNTLMv2 password hashes                           |
+| nethalflm       | NEThalfLM password hashes                           |
+| md5ns           | MD5 namespace password hashes                       |
+| nsldap          | OpenLDAP SHA password hashes                        |
+| ssha            | Salted SHA password hashes                          |
+| NT              | NT (Windows NT) password hashes                     |
+| openssha        | OpenSSH private key password hashes                 |
+| oracle11        | Oracle 11 password hashes                           |
+| oracle          | Oracle password hashes                              |
+| pdf             | PDF password hashes                                 |
+| phpass-md5      | PHPass-MD5 password hashes                          |
+| phps            | PHPS password hashes                                |
+| pix-md5         | Cisco PIX MD5 password hashes                       |
+| po              | Sybase SQL Anywhere password hashes                 |
+| rar             | RAR (WinRAR) password hashes                        |
+| raw-md4         | Raw MD4 password hashes                             |
+| raw-md5         | Raw MD5 password hashes                             |
+| raw-md5-unicode | Raw MD5 Unicode password hashes                     |
+| raw-sha1        | Raw SHA1 password hashes                            |
+| raw-sha224      | Raw SHA224 password hashes                          |
+| raw-sha256      | Raw SHA256 password hashes                          |
+| raw-sha384      | Raw SHA384 password hashes                          |
+| raw-sha512      | Raw SHA512 password hashes                          |
+| salted-sha      | Salted SHA password hashes                          |
+| sapb            | SAP CODVN B (BCODE) password hashes                 |
+| sapg            | SAP CODVN G (PASSCODE) password hashes              |
+| sha1-gen        | Generic SHA1 password hashes                        |
+| skey            | S/Key (One-time password) hashes                    |
+| ssh             | SSH password hashes                                 |
+| sybasease       | Sybase ASE password hashes                          |
+| xsha            | Extended SHA password hashes                        |
+| zip             | ZIP (WinZip) password hashes                        |
+|-----------------+-----------------------------------------------------|
+*** Cracking Files
+- =2john tools=
+- ~<tool> <file> > file.hash~
+
+** HashCat
+- ~hashcat -a 0 -m 0 <hashes> [wordlist, rule, mask, ...]~ -> ~-a~ -> =attack mode=, ~-m~ -> =hash type=
+- *rules* -> ~/usr/share/hashcat/rules~
+*** Hash Types
+- [[https://hashcat.net/wiki/doku.php?id=example_hashes][example hashes]]
+- ~hashcat -h~
+
+*** Attack Modes
+
+**** Dictionary
+- ~-a 0~
+- ~hashcat -a 0 -m 0 <hash> <wordlist>~
+
+**** Mask
+- ~-a 3~
+- brute force
+- keyspace explicitly defined by user
+- ~hashcat -a 3 -m 0 1e293d6912d074c0fd15844d803400dd '?u?l?l?l?l?d?s'~
+
+** Custom Wordlists & Rules
+- [[https://academy.hackthebox.com/course/preview/osint-corporate-recon][OSINT: Corporate Recon Module]]
+
+*** Most Common Password policies
+1. first letter Upper
+2. add num
+3. add year
+4. add month
+5. last character is exclamation mark
+6. adding special char
+
+
+*** Creating rules
+1. do nothing - ~:~
+2. lower - ~l~
+3. upper - ~u~
+4. capitalise - ~c~
+5. replace x w y - ~sxy~
+6. add exclamation at end ~$!~
+
+#+begin_src txt
+:
+c
+so0
+c so0
+sa@
+c sa@
+c sa@ so0
+$!
+$! c
+$! so0
+$! sa@
+$! c so0
+$! c sa@
+$! so0 sa@
+$! c so0 sa@
+#+end_src
+
+*** LAB 
+- combine for 12 char
+  - ~hashcat --stdout -a 1 base.txt base.txt > combined.txt~
+- extend wordlist
+  - ~hashcat --stdout mut_pass.txt -r /usr/share/john/rules/rockyou-30000.rule > final.txt~
+
+** Cracking Protected Files
+*** Hunting for Encrypted Files
+~for ext in $(echo ".xls .xls* .xltx .od* .doc .doc* .pdf .pot .pot* .pp*");do echo -e "\nFile Ext: " $ext;find / -name *.ext 2>/dev/null | grep -v "lib\|fonts\|share\|core";done~
+*** Hunting for SSH Keys
+- pvt keys always begin with ~-----BEGIN [...SNIP...] PRIVATE KEY-----~
+- use grep to recursively search for
+- to tell if SSH key is encrypted or not, ~ssh-keygen -yf ~/.ssh/id_ed25519~
+  - will prompt for passwd if encrypted
+*** Cracking encrypted SSH keys
+- =ssh2john=
+  1. ~ssh2john.py SSH.private > ssh.hash~
+  2. ~john --wordlist=<wordlist> ssh.hash~
+  3. ~john ssh.hash --show~
+*** Cracking password protected docs
+- ~office2john.py~
+- ~john --wordlist=<wordlist> hash~
+
+** Cracking Protected Archives
+*** ZIP
+- ~zip2john~
+*** OpenSSL encrypted GZIP
+- use ~file~ to see if encrypted
+ ~for i in $(cat rockyou.txt);do openssl enc -aes-256-cbc -d -in GZIP.gzip -k $i 2>/dev/null| tar xz;done~
+*** Cracking Bitlocker encrypted devices
+- =AES= w 128b/256b key len
+- recovery key = 48 digit string generated during setup
+- ~bitlocker2john -i <i/p> > <o/p>~ -> ~grep "bitlocker\$0" backup.hashes > backup.hash~
+- ~bitlocker2john~ -> 4 different hashes
+  - first 2 -> password
+  - latter two -> recovery key
+- hash -> m 22100 hashcat
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ bitlocker2john -i Backup.vhd > backup.hashes
+biscuitrescue@htb[/htb]$ grep "bitlocker\$0" backup.hashes > backup.hash
+biscuitrescue@htb[/htb]$ cat backup.hash
+#+end_src
+
+**** Mounting
+- =dislocker=
+
+- create mnt point
+  - ~mkdir -p /media/bitlocker~
+  - ~mkdir -p /media/bitlockermount~
+    
+- configure VHD as =loop device=, decrypt using =dislocker=, mount
+  - ~losetup -f -P Backup.vhd~
+  - ~dilocker /dev/loop0p2 -u1234qwer -- /media/bitlocker~
+  - ~mount -o loop /media/bitlocker/dislocker-file /media/bitlockermount~
+
