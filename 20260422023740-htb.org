@@ -12,6 +12,7 @@
 - [[id:47aaa31c-f8cf-4211-997a-cbcee76b2bad][info gathering]]
 - [[id:198a1577-9abc-4e40-bc2c-430a09178a8d][vulnerability assessment]]
 - [[id:95f92876-30b5-486d-91a9-33ab28ed9357][password attacks]]
+- [[id:89f503fa-dbde-4710-9ddb-8d67f4605a02][Attacking Common Services]]
 
 #+begin_quote
 fileless attacks run the payload directly in memory or leverage legitimate system tools to run malicious code without having to drop executable files on the disk
@@ -61,3 +62,5 @@ Projects/
 - [[https://github.com/boomcamp/django-security][GitHub]]
 ** Crunch
 - custom wordlists
+** Papers
+- [[https://www.specterops.io/assets/resources/Certified_Pre-Owned.pdf][Certified Pre-Owned]] -> describes =ESC8=

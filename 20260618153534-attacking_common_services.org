@@ -1,0 +1,112 @@
+:PROPERTIES:
+:ID:       89f503fa-dbde-4710-9ddb-8d67f4605a02
+:END:
+#+title: Attacking Common Services
+#+OPTIONS: toc:3
+
+* TOC :toc_3:
+- [[#essentials][Essentials]]
+  - [[#cmd][CMD]]
+  - [[#powershell][PowerShell]]
+- [[#concept-of-attacks][Concept of Attacks]]
+  - [[#source][Source]]
+    - [[#information-sources][Information Sources]]
+  - [[#process][Process]]
+    - [[#process-components][Process Components]]
+  - [[#privileges][Privileges]]
+    - [[#privileges-1][Privileges]]
+  - [[#destination][Destination]]
+
+* Essentials
+** CMD
+- ~dir \\<ip\Share\~
+- ~net use n: \\<ip>\share /user:plaintext Pass~
+- ~dir n: /a-d /s /b | find /c ":\"~
+  - ~/a-d~ -> =/a=: attr, =-d=: not dirs
+  - ~/s~ -> displays files in specified directory & all subdirs
+  - ~/b~ -> uses bare format (no heading info or summary)
+  - ~| find /c ":///"~ -> processes o/p of cmd before pipe
+- ~findstr /s /i cred n:\*.*~
+** PowerShell
+- ~Get-ChildItem \\<ip>\Share\~ -> =dir=
+- ~New-PSDrive -Name "N" -Root "\\192.168.220.129\Share" -PSProvider "FileSystem"~ -> =ns= 
+  - create PSCredential Object to provide pass & username
+#+begin_src PS
+PS C:\htb> $username = 'plaintext'
+PS C:\htb> $password = 'Password123'
+PS C:\htb> $secpassword = ConvertTo-SecureString $password -AsPlainText -Force
+PS C:\htb> $cred = New-Object System.Management.Automation.PSCredential $username, $secpassword
+PS C:\htb> New-PSDrive -Name "N" -Root "\\192.168.220.129\Finance" -PSProvider "FileSystem" -Credential $cred
+
+Name           Used (GB)     Free (GB) Provider      Root                                                              CurrentLocation
+----           ---------     --------- --------      ----                                                              ---------------
+N                                      FileSystem    \\192.168.220.129\Finance
+#+end_src
+- ~(Get-ChildItem -File -Recurse | Measure-Object).Count~
+  - =-Include= to find specific items from dir specified by Path param
+  - ~Get-ChildItem -Recurse -Path N:\ -Include *cred* -File~
+- ~Get-ChildItem -Recurse -Path N:\ | Select-String "cred" -List~
+  - uses regex matching to search (=grep=)
+    
+* Concept of Attacks
+- based on 4 cats that occur for each vuln
+  
+** Source
+- source of info used for specific task of process
+- doesn't matter which protocol used because HTTP header injections and buf overflows can be manipulated manually
+- [[https://cve.mitre.org/cgi-bin/cvename.cgi?name=cve-2021-44228][Log4j]]
+  
+*** Information Sources
+**** Code
+- already exec'd program code results used as source of information
+**** Libraries
+- collection of program resources
+- include config data, docss, help data, msg templates, prebuilt code, subroutines, classes, vals, type specs
+**** Config
+- static/prescribed vals that determine how process processes info
+**** APIs
+- interface of programs for retrieving/providing info
+**** User I/P
+- manual entry of info by user
+
+** Process
+- processing information fwd from source
+- processed according to intended task det by program code.
+- for each task dev specs how info processed
+- occurs using classes w diff functions, calcs, loops
+
+*** Process Components
+
+**** PID
+- ID process being started or is already running
+- running procs have already assigned privileges, new ones started accordingly
+
+**** Input
+- i/p of info
+- assigned by user or result of programmed function
+
+**** Data Processing
+- hard-coded fn() of program dictate how info rcvd is processed.
+
+**** Variables
+- used as placeholders for info that diff fn() can further process
+
+**** Logging
+- events documented and stored in reg or file
+
+** Privileges
+- present in any system that controls processes.
+- type of permission that determine what tasks and actions can be performed
+
+*** Privileges
+**** System
+
+**** User
+
+**** Groups
+
+**** Policies
+
+**** Rules
+
+** Destination
