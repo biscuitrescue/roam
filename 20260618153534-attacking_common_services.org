@@ -16,6 +16,7 @@
   - [[#privileges][Privileges]]
     - [[#privileges-1][Privileges]]
   - [[#destination][Destination]]
+    - [[#destination-1][Destination]]
 
 * Essentials
 ** CMD
@@ -100,13 +101,33 @@ N                                      FileSystem    \\192.168.220.129\Finance
 
 *** Privileges
 **** System
-
+- highest
+- allow any system mod
+- =SYSTEM= && =root=
+  
 **** User
+- assigned to specific user
 
 **** Groups
+- atleast one user who has perms to perform some actions
 
 **** Policies
+- determine execution of application-specific commands
+- can apply to grouped || individual users & actions
 
 **** Rules
+- perms to perform actions handled from w/in apps
 
 ** Destination
+- where changes will be made
+- can point to local or remote process
+
+*** Destination
+
+**** Local
+- system env in which process occurred
+- results either processed further by process that includes changes to data sets or storage of data
+
+**** Network
+- matter of fwd results of process to remote interface (IP addr || entire network)
+- results can even influence route.
