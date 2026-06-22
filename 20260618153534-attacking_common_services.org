@@ -17,6 +17,9 @@
     - [[#privileges-1][Privileges]]
   - [[#destination][Destination]]
     - [[#destination-1][Destination]]
+- [[#protocol-specific-attacks][Protocol Specific Attacks]]
+  - [[#ftp][FTP]]
+  - [[#smb][SMB]]
 
 * Essentials
 ** CMD
@@ -131,3 +134,9 @@ N                                      FileSystem    \\192.168.220.129\Finance
 **** Network
 - matter of fwd results of process to remote interface (IP addr || entire network)
 - results can even influence route.
+
+* Protocol Specific Attacks
+** FTP
+- [[id:436478d4-2081-4aef-a15c-e3deee023bd3][FTP]]
+** SMB
+- [[id:dfe75f04-c009-4320-a645-e2d8df5a846c][SMB]]

