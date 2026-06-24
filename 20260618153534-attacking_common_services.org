@@ -20,6 +20,7 @@
 - [[#protocol-specific-attacks][Protocol Specific Attacks]]
   - [[#ftp][FTP]]
   - [[#smb][SMB]]
+  - [[#sql][SQL]]
 
 * Essentials
 ** CMD
@@ -140,3 +141,5 @@ N                                      FileSystem    \\192.168.220.129\Finance
 - [[id:436478d4-2081-4aef-a15c-e3deee023bd3][FTP]]
 ** SMB
 - [[id:dfe75f04-c009-4320-a645-e2d8df5a846c][SMB]]
+** SQL
+- [[id:6aea86c1-1e85-431c-bebd-a8278de7919c][SQL]]

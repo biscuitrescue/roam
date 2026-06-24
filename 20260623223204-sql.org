@@ -1,0 +1,146 @@
+:PROPERTIES:
+:ID:       6aea86c1-1e85-431c-bebd-a8278de7919c
+:END:
+#+title: SQL
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#attacking-sql-db][Attacking SQL DB]]
+  - [[#enumeration][Enumeration]]
+    - [[#banner-grabbing][Banner Grabbing]]
+  - [[#authentication-mechanisms][Authentication Mechanisms]]
+    - [[#misconfigurations][Misconfigurations]]
+    - [[#privileges][Privileges]]
+  - [[#protocol-specific-attacks][Protocol Specific Attacks]]
+    - [[#connecting-to-sql-server][Connecting to SQL server]]
+    - [[#default-dbs][Default DBs]]
+  - [[#execute-commands][Execute Commands]]
+    - [[#mssql][MSSQL]]
+    - [[#mysql][MySQL]]
+  - [[#write-local-files][Write Local Files]]
+
+* Attacking SQL DB
+- [[https://www.trendmicro.com/vinfo/us/threat-encyclopedia/vulnerability/2383/mysql-database-authentication-bypass][MySQL DB Authentication Bypass]]
+  - =Timing Attack=: mysql repeatedly attempts to auth to server * measures time taken for server to respond each time.
+  - by measuring time, possible to determine when correct passw found, even if server doesnt tell
+  - =5.6.x= took longer to respond to incorrect pass than to correct
+
+** Enumeration
+- MSSQL -> =TCP/1433=, =UDP/1434= (=TCP/2433= in *hidden* mode)
+- MySQL -> =TCP/3306=
+- default NSE scripts
+
+*** Banner Grabbing
+~nmap -Pn -sVC -p1433 <ip>~
+
+** Authentication Mechanisms
+**** Authentication Types
+***** Windows Authentication Mode
+- default
+- =integrated= security (SQL server security model tightly integrated w Windows/AD)
+- specific users & groups Re trusted to login to SQL server
+- already authenticated users not needed to present additional creds
+***** Mixed Mode
+- supports auth by Win/AD accounts & SQL server
+- Username & Pass pairs maintained w/in sql server
+  
+*** Misconfigurations
+- anon access
+
+*** Privileges
+
+** Protocol Specific Attacks
+
+*** Connecting to SQL server
+
+**** MySQL
+- ~mysql -u julio -pPassword123 -h 10.129.20.13~
+
+**** Sqlcmd (mssql)
+- ~C:\htb> sqlcmd -S SRVMSSQL -U julio -P 'MyPassword!' -y 30 -Y 30~
+- ~-y~ (=SQLCMDMAXVARTYPEWIDTH=) & ~-Y~ (=SQLCMDMAXFIXEDTYPEWIDTH=) for better output
+
+**** Sqsh (mssql linux)
+- ~sqsh -S 10.129.203.7 -U julio -P 'MyPassword!' -h~
+- =-h=: disable headers
+
+**** mssqlclient.py (impacket)
+- ~mssqlclient.py -p 1433 <user>@<ip>~
+
+*** Default DBs
+- info about DB itself
+- can use sys stored procedures
+- dont store company data
+
+****** MYSQL
+******* mysql
++ system DB
++ contains tables that store info req by server
+******* information_schema
++ DB metadata
+******* performance_schema
++ monitoring MySQL server execution at low level
+******* sys
++ set of objects -> helps to interpret data collected by =performance_schema=
+****** MSSQL
+******* master
++ keeps info for instance of SQL server
+******* msdb
++ used by SQL server agent
+******* model
++ template DB copied for each new DB
+******* resource
++ *ro* DB
++ keeps sys objects visible in every DB on server in sys schema
+******* tempdb
++ temp objects for SQL queries
+
+** Execute Commands
+*** MSSQL
+- extended stored procedure -> =xp_cmdshell=
+**** XP_CMDSHELL
+- disabled by default
+- toggled using =Policy-Based Management= or executing =sp_configure=
+- windows process spawned by xp_cmdshell has same security rights as SQL server service account
+- operates synchronously. control not returned to caller until cmd-shell cmd completed.
+#+begin_src cmd
+1> xp_cmdshell 'whoami'
+2> GO
+
+output
+-----------------------------
+no service\mssql$sqlexpress
+NULL
+(2 rows affected)
+#+end_src
+
+***** Enable XP_CMDSHELL using
+#+begin_src cmd
+-- To allow advanced options to be changed.  
+EXECUTE sp_configure 'show advanced options', 1
+GO
+
+-- To update the currently configured value for advanced options.  
+RECONFIGURE
+GO  
+
+-- To enable the feature.  
+EXECUTE sp_configure 'xp_cmdshell', 1
+GO  
+
+-- To update the currently configured value for this feature.  
+RECONFIGURE
+GO
+#+end_src
+
+**** Other methods for cmd execution
+- adding extended stored procedures
+- CLR Assemblies
+- SQL Server Agent Jobs
+- external scripts
+- =xp_regwrite= -> elevate priv by creating new entries in windows reg
+*** MySQL
+- =user defined fn()= -> exec C/C++ code as fn w/in sql
+  
+** Write Local Files
+ -
