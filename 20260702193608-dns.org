@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       c2ffc2ba-cd64-4ab0-ac44-2ac61a240f4e
+:END:
+#+title: DNS
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#attacking-dns][Attacking DNS]]
+
+* Attacking DNS

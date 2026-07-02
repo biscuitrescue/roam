@@ -21,6 +21,8 @@
   - [[#ftp][FTP]]
   - [[#smb][SMB]]
   - [[#sql][SQL]]
+  - [[#rdp][RDP]]
+  - [[#dns][DNS]]
 
 * Essentials
 ** CMD
@@ -143,3 +145,7 @@ N                                      FileSystem    \\192.168.220.129\Finance
 - [[id:dfe75f04-c009-4320-a645-e2d8df5a846c][SMB]]
 ** SQL
 - [[id:6aea86c1-1e85-431c-bebd-a8278de7919c][SQL]]
+** RDP
+- [[id:44f9bc17-35c3-4d08-abef-8f4d90316746][RDP]]
+** DNS
+- [[id:c2ffc2ba-cd64-4ab0-ac44-2ac61a240f4e][DNS]]

