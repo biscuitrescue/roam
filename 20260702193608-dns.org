@@ -8,3 +8,4 @@
 - [[#attacking-dns][Attacking DNS]]
 
 * Attacking DNS
+- =UDP/53= & =TCP/53=

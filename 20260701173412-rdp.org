@@ -11,6 +11,10 @@
   - [[#protocol-specific-attacks][Protocol Specific Attacks]]
     - [[#rdp-session-hijacking][RDP Session Hijacking]]
   - [[#rdp-pth][RDP PtH]]
+- [[#rdp-vuln-bluekeep][RDP Vuln (BlueKeep)]]
+  - [[#concept-of-attack][Concept of Attack]]
+    - [[#init-of-attack][Init of Attack]]
+    - [[#trigger-rce][Trigger RCE]]
 
 * Attacking RDP
 - =TCP/3389=
@@ -40,3 +44,45 @@
   - ~reg add HKLM\System\CurrentControlSet\Control\Lsa /t REG_DWORD /v DisableRestrictedAdmin /d 0x0 /f~
 - ~xfreerdp /v:<ip> /u:<user> /pth:<NTLM_HASH>~
 
+  
+* RDP Vuln (BlueKeep)
+- RDP =TCP/3389= -> *RCE* ([[https://msrc.microsoft.com/update-guide/vulnerability/CVE-2019-0708][CVE-2019-0708]])
+- Doesn't require prior access to system
+
+
+** Concept of Attack
+- Based on manipulated requests sent to targeted srv
+- Doesn't require user auth, vuln occurs after initialising connection when basic settings changed b/w client & server
+- =Use-After-Free= (=UAF=): Uses freed mem to exec arbitrary code
+- After fn() is exploited & mem freed, data written to kernel -> allows to overwrite kernel mem
+- used to write instr into freed mem & let CPU exec them
+- [[https://unit42.paloaltonetworks.com/exploitation-of-windows-cve-2019-0708-bluekeep-three-ways-to-write-data-into-the-kernel-with-rdp-pdu/][Technicalities]]
+
+*** Init of Attack
+
+***** 1. Source
+- source is init req of settings exchange b/w server & client that the attacker has manipulated
+
+***** 2. Process
+- req leads to fn used to create virtual channel containing vuln
+
+***** 3. Privileges
+- srv suitable for administering of system.
+- automatically run w =LocalSystem Account= privileges of system
+
+***** 4. Destination
+- Manipulation of fn() redirects to kernel proc
+
+*** Trigger RCE
+
+***** 1. Source
+- payload created by attacker that is inserted into process to free memory in kernel to place instr
+
+***** 2. Process
+- process in kernel is triggered to free kernel mem & let CPU point to our code
+
+***** 3. Privileges
+- instr put into freed kernel mem executed w =LocalSystem Account= priv
+
+***** 4. Destination
+- revshell sent over network to our host
