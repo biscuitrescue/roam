@@ -6,6 +6,70 @@
 
 * TOC :toc_3:
 - [[#attacking-dns][Attacking DNS]]
+  - [[#dns-zone-transfer][DNS Zone Transfer]]
+    - [[#dig][DIG]]
+    - [[#fierce][Fierce]]
+  - [[#domain-takeovers--subdomain-enumeration][Domain Takeovers & Subdomain Enumeration]]
+    - [[#domain-takeover][Domain Takeover]]
+    - [[#subdomain-enumeration][Subdomain Enumeration]]
+  - [[#dns-spoofing][DNS Spoofing]]
+    - [[#local-dns-cache-poisoning][Local DNS Cache Poisoning]]
 
 * Attacking DNS
-- =UDP/53= & =TCP/53=
+- =UDP/53= & =TCP/53= (UDP default, TCP when packet size larger)
+
+** DNS Zone Transfer
+- [[file:20260530145602-info_gathering.org::*DNS Zone Transfers][DNS Zone Transfers]]
+- DNS servers util DNS zone transfers to copy portion of DB to another DNS server
+- unless DNS server configured correctly (limit what iP can perform zone transfer), anyone can ask DNS server for copy of zone info (DNS zone Transfer doesnt require auth)
+
+*** DIG
+~dig AXFR @ns1.inlanefreight.htb inlanefreight.htb~
+
+*** Fierce
+~fierce --domain zonetransfer.me~
+
+** Domain Takeovers & Subdomain Enumeration
+*** Domain Takeover
+- [[https://github.com/EdOverflow/can-i-take-over-xyz][Can I Take Over xyz]]
+- registering non-existent domain name to gain control over another domain
+  * finding expired domain and claiming it to host malcontent etc
+*** Subdomain Enumeration
+- enumerate subdomains for target domain using tools =subfinder= (scrape subdomains from open sources (=DNSdumpster=) or =sublist3r= (brute-force subdomains by supplying a pre gen wordlist)
+- ~./subfinder -d inlanefreight.com -v~
+  
+**** Subbrute
+- self-defined resolvers to perform pure DNS brute-forcing attacks on hosts that do not have internet access
+- [[https://github.com/TheRook/subbrute]]
+#+begin_src bash
+biscuitrescue@htb[/htb]$ echo "ns1.inlanefreight.com" > ./resolvers.txt
+biscuitrescue@htb[/htb]$ ./subbrute.py inlanefreight.com -s ./names.txt -r ./resolvers.txt
+
+Warning: Fewer than 16 resolvers per process, consider adding more nameservers to resolvers.txt.
+inlanefreight.com
+ns2.inlanefreight.com
+www.inlanefreight.com
+ms1.inlanefreight.com
+support.inlanefreight.com
+
+<SNIP>
+#+end_src
+
+- sometimes internal physical connections are poorly secured (upload tools from USB)
+- reached internal host through pivoting
+
+** DNS Spoofing
+- DNS cache poisoning
+- alter legit DNS records w false info to redirect traffic to fraudulent website
+
+*** Local DNS Cache Poisoning
+- MITM Tools (=Ettercap= / =Bettercap=)
+
+**** Ettercap
+- =/etc/ettercap/etter.dns= -> include target domain name to spoof & attacker IP addr
+#+begin_src bash
+biscuitrescue@htb[/htb]# cat /etc/ettercap/etter.dns
+
+inlanefreight.com      A   192.168.225.110
+*.inlanefreight.com    A   192.168.225.110
+#+end_src

@@ -23,6 +23,7 @@
   - [[#sql][SQL]]
   - [[#rdp][RDP]]
   - [[#dns][DNS]]
+  - [[#email-services][Email Services]]
 
 * Essentials
 ** CMD
@@ -149,3 +150,5 @@ N                                      FileSystem    \\192.168.220.129\Finance
 - [[id:44f9bc17-35c3-4d08-abef-8f4d90316746][RDP]]
 ** DNS
 - [[id:c2ffc2ba-cd64-4ab0-ac44-2ac61a240f4e][DNS]]
+** Email Services
+- [[id:a903a61e-d622-4459-a483-06ddf3f20b03][email srv]]

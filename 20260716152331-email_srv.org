@@ -1,0 +1,106 @@
+:PROPERTIES:
+:ID:       a903a61e-d622-4459-a483-06ddf3f20b03
+:END:
+#+title: email srv
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#attacking-email-services][Attacking Email Services]]
+  - [[#enumeration][Enumeration]]
+    - [[#host---mx-records][HOST - MX records]]
+    - [[#dig---mx-records][DIG - MX records]]
+    - [[#host---a-records][HOST - A Records]]
+    - [[#ports][PORTS]]
+  - [[#misconfigurations][Misconfigurations]]
+    - [[#authentication][Authentication]]
+
+* Attacking Email Services
+- sending -> =SMTP=
+- downloading -> =POP3= / =IMAP4=
+
+** Enumeration
+- complex and require us to enum multiple servers, ports, services
+- most companies have cloud
+- can use =Mail eXchanger= (=MX=) DNS record to ID mail server.
+  - specifies mail server responsible for accepting email msgs
+- =host= or =dig= & [[https://mxtoolbox.com/][MXToolbox]]
+
+*** HOST - MX records
+#+begin_src bash
+host -t MX <domain>
+#+end_src
+
+*** DIG - MX records
+~dig mx <domain> | grep "MX" | grep -v ";"~
+
+*** HOST - A Records
+- ~host -t A <domain>~
+
+*** PORTS
+**** Unencrypted
+1. =25= -> SMTP
+2. =143= -> IMAP4
+3. =110= -> POP3
+**** Encrypted
+1. =465= -> SMTP
+2. =587= -> SMTP (*STARTTLS*)
+3. =993= -> IMAP4 Encrypted
+4. =995= -> POP3 Encrypted
+   
+** Misconfigurations
+
+*** Authentication
+- SMTP server has diff cmds to use to enum valid usernames =VRFY=, =EXPN=, =RCPT TO=
+- possible to password spray if enum valid usernames
+  
+**** VRFY
+- instructs recieving SMTP server to check validity of particular email username
+- server will respond indicating if user exists or not
+  - can be disabled
+#+begin_src bash
+biscuitrescue@htb[/htb]$ telnet 10.10.110.20 25
+
+Trying 10.10.110.20...
+Connected to 10.10.110.20.
+Escape character is '^]'.
+220 parrot ESMTP Postfix (Debian/GNU)
+
+
+VRFY root
+
+252 2.0.0 root
+
+
+VRFY www-data
+
+252 2.0.0 www-data
+
+
+VRFY new-user
+
+550 5.1.1 <new-user>: Recipient address rejected: User unknown in local recipient table
+#+end_src
+
+**** EXPN
+- similar to =VRFY=, but when used w distro list, will list all users on that list
+- can be bigger problem than =VRFY=, since sites have alias = *"all"*
+#+begin_src bash
+biscuitrescue@htb[/htb]$ telnet 10.10.110.20 25
+
+Trying 10.10.110.20...
+Connected to 10.10.110.20.
+Escape character is '^]'.
+220 parrot ESMTP Postfix (Debian/GNU)
+
+
+EXPN john
+
+250 2.1.0 john@inlanefreight.htb
+
+
+EXPN support-team
+
+250 2.0.0 carol@inlanefreight.htb
+250 2.1.5 elisa@inlanefreight.htb
+
+#+end_src
