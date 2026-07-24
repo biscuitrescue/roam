@@ -1,0 +1,11 @@
+:PROPERTIES:
+:ID:       5ecd26bc-d156-453f-86e8-1a084e86f5c6
+:END:
+#+title: Starting Tunnels
+#+OPTIONS: toc:3 ^:{}
+
+* Dynamic Port Fwding w SSH & SOCKS Tunneling 
+
+** Port Fwding
+- redirect communication request from 1 port to another
+- TCP = primary communcation layer to provide interacting

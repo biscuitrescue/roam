@@ -1,0 +1,30 @@
+:PROPERTIES:
+:ID:       e9c1bb90-0125-4d6e-984a-e1d97c22918e
+:END:
+#+title: Pivoting, Tunneling, Port Fwding
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#pivoting][Pivoting]]
+  - [[#ip-addressing--nics][IP Addressing & NICs]]
+  - [[#routing][Routing]]
+- [[#tunneling][Tunneling]]
+- [[#next][Next]]
+
+* Pivoting
+- *moving to other networks through compromised host to find more targets on diff network segments*
+- defeat segmentation (phys & virt) to access isolated network
+
+** IP Addressing & NICs
+- IP assigned through DHCP server or static to NIC
+
+** Routing
+- ~netstat -r~ / ~ip route~ -> routing table
+
+* Tunneling
+- subset of pivoting
+- encapsulates network traffic into another protocol and routes traffic through it
+- eg: *VPN*
+
+* Next
+- [[id:5ecd26bc-d156-453f-86e8-1a084e86f5c6][Starting Tunnels]]
